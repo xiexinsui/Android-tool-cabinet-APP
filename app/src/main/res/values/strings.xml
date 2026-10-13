@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">工具箱</string>
+    <string name="title_decibel">分贝仪</string>
+    <string name="tool_coming_soon">更多工具（待添加）</string>
+    <string name="tool_soon">功能开发中，敬请期待</string>
+    <string name="device_label">麦克风输入设备</string>
+    <string name="device_default">系统默认麦克风</string>
+    <string name="refresh">刷新</string>
+    <string name="db_unit">dB</string>
+    <string name="stat_max">最大</string>
+    <string name="stat_min">最小</string>
+    <string name="stat_leq">平均 Leq</string>
+    <string name="stat_placeholder" translatable="false">--</string>
+    <string name="spectrum_label">频段分布（1/1 倍频程）</string>
+    <string name="peak_band_none">主频段 --</string>
+    <string name="peak_band_format">主频段 %1$s（占 %2$d%%）</string>
+    <string name="start">开始</string>
+    <string name="stop">停止</string>
+    <string name="calibrate">校准</string>
+    <string name="devices_found">发现 %1$d 个输入设备</string>
+    <string name="meter_start_failed">启动采集失败，请检查麦克风权限或更换设备</string>
+    <string name="meter_error">采集异常：%1$s</string>
+    <string name="need_mic_permission">需要麦克风权限才能测量分贝</string>
+    <string name="info_format">dBFS %1$s · %2$d Hz · 数据源 %3$s · 实际路由 %4$s</string>
+    <string name="not_running">未运行</string>
+    <string name="unknown">未知</string>
+    <string name="cal_title">校准偏移</string>
+    <string name="cal_current">当前偏移 %1$.1f dB（dBFS + 偏移 = 显示值）</string>
+    <string name="type_builtin_mic">内置麦克风</string>
+    <string name="type_wired_headset">有线耳机麦克风</string>
+    <string name="type_wired_headphones">有线耳机</string>
+    <string name="type_bluetooth_sco">蓝牙耳机 (SCO)</string>
+    <string name="type_ble_headset">蓝牙耳机 (BLE)</string>
+    <string name="type_ble_speaker">BLE 音箱</string>
+    <string name="type_usb_headset">USB 耳机</string>
+    <string name="type_usb_device">USB 设备</string>
+    <string name="type_usb_accessory">USB 附件</string>
+    <string name="type_fm">FM 收音</string>
+    <string name="type_tv">TV 调谐器</string>
+    <string name="type_telephony">通话下行</string>
+    <string name="type_aux_line">AUX 线路输入</string>
+    <string name="type_remote_submix">系统混音</string>
+    <string name="type_hdmi">HDMI</string>
+    <string name="type_unknown">类型 %1$d</string>
+    <string name="title_dns">域名解析</string>
+    <string name="dns_input_hint">输入域名，如 example.com</string>
+    <string name="dns_resolve">解析</string>
+    <string name="dns_resolve_all">重新解析全部</string>
+    <string name="dns_long_press_hint">长按地址复制；长按域名可复制、重新解析或删除</string>
+    <string name="dns_resolving">解析中…</string>
+    <string name="dns_result_format">IPv4 %1$d 条 · IPv6 %2$d 条 · %3$s</string>
+    <string name="dns_failed">解析失败：%1$s</string>
+    <string name="dns_copied">已复制 %1$s</string>
+    <string name="dns_empty_input">请先输入域名</string>
+    <string name="dns_empty_list">还没有域名：在上方输入框填写，点「解析」即可添加</string>
+    <string name="dns_copy_domain">复制域名</string>
+    <string name="dns_reparse">重新解析</string>
+    <string name="dns_delete">从列表删除</string>
+    <string name="dns_delete_confirm">删除 %1$s？可在输入框重新添加。</string>
+    <string name="lang_title">语言</string>
+    <string name="lang_auto">跟随系统</string>
+    <string name="lang_zh">简体中文</string>
+    <string name="lang_en">English</string>
+
+    <!-- STM32 固件下载 -->
+    <string name="title_isp">固件下载</string>
+    <string name="isp_section_device">设备（USB 串口）</string>
+    <string name="isp_rescan">重新扫描</string>
+    <string name="isp_connect">连接</string>
+    <string name="isp_disconnect">断开</string>
+    <string name="isp_usb_disconnected">● 未连接</string>
+    <string name="isp_usb_connected">● 已连接：%1$s</string>
+    <string name="isp_no_device">未发现 USB 串口设备</string>
+    <string name="isp_device_unsupported">驱动库不支持该设备：%1$s</string>
+    <string name="isp_permission_needed">请在系统弹窗中允许访问该 USB 设备</string>
+    <string name="isp_open_failed">打开串口失败：%1$s</string>
+    <string name="isp_need_connection">请先连接 USB 串口设备</string>
+    <string name="isp_need_firmware">请先选择固件文件</string>
+    <string name="isp_busy">请等待当前操作结束</string>
+
+    <string name="isp_section_params">下载参数</string>
+    <string name="isp_baud">波特率</string>
+    <string name="isp_step_delay">延时(ms)</string>
+    <string name="isp_delay_default">100</string>
+    <string name="isp_boot_mode">进入 Bootloader 的方式</string>
+    <string name="isp_boot_mode_hint">按转接板实际接线选择；不确定时选「0 手动按键」，然后手动把 BOOT0 拉高并按一下复位</string>
+    <string name="isp_bin_addr">BIN 起始地址</string>
+    <string name="isp_bin_addr_hint">08000000</string>
+    <string name="isp_invalid_addr">起始地址无效，应为十六进制，如 08000000</string>
+    <string name="isp_verify_each_page">写入时逐块回读校验（耗时约翻倍）</string>
+    <string name="isp_run_after">下载完成后运行程序</string>
+
+    <string name="isp_section_firmware">固件</string>
+    <string name="isp_pick_file">选择固件文件（.bin / .hex）</string>
+    <string name="isp_firmware_none">未选择固件</string>
+    <string name="isp_recent_title">最近打开</string>
+    <string name="isp_recent_item">%1$s · %2$s 字节</string>
+    <string name="isp_recent_remove">从最近列表移除</string>
+    <string name="isp_recent_removed">已移除 %1$s</string>
+    <string name="isp_recent_missing">%1$s 已无法读取（文件被移动、删除或授权已撤销），已从最近列表移除</string>
+    <string name="isp_firmware_loaded">%1$s · %2$s 字节 · %3$d 段 · 0x%4$08X–0x%5$08X</string>
+    <string name="isp_file_read_failed">读取文件失败：%1$s</string>
+    <string name="isp_bin_empty">文件为空</string>
+    <string name="isp_bin_too_large">BIN 文件过大（%1$d 字节），请确认文件是否正确</string>
+    <string name="isp_hex_no_colon">第 %1$d 行：缺少起始冒号</string>
+    <string name="isp_hex_bad_length">第 %1$d 行：长度不合法</string>
+    <string name="isp_hex_line_too_long">第 %1$d 行：记录过长</string>
+    <string name="isp_hex_bad_char">第 %1$d 行：包含非十六进制字符</string>
+    <string name="isp_hex_data_short">第 %1$d 行：数据长度与长度字段不符</string>
+    <string name="isp_hex_checksum">第 %1$d 行：校验和错误</string>
+    <string name="isp_hex_no_record">文件里没有有效数据记录</string>
+    <string name="isp_unsupported_format">只支持 .bin 与 Intel .hex 文件</string>
+
+    <string name="isp_download">开始下载</string>
+    <string name="isp_cancel">中止</string>
+    <string name="isp_erase_only">仅擦除</string>
+    <string name="isp_verify_only">回读校验</string>
+    <string name="isp_run">退出并运行</string>
+    <string name="isp_progress_idle">就绪</string>
+    <string name="isp_status_erasing">正在擦除</string>
+    <string name="isp_status_verify_erase">正在验证擦除</string>
+    <string name="isp_status_writing">写入中</string>
+    <string name="isp_status_verifying">校验中</string>
+    <string name="isp_status_reading">读取 Flash</string>
+    <string name="isp_status_done">完成</string>
+    <string name="isp_status_failed">失败</string>
+    <string name="isp_task_failed_hint">操作失败，请查看运行日志中的 ERR 行</string>
+
+    <string name="isp_section_chip">芯片信息</string>
+    <string name="isp_chip_unknown">未读取</string>
+    <string name="isp_chip_info">型号：%1$s\nPID：0x%2$04X　Bootloader：0x%3$02X\nFlash：%4$d KB　SRAM：%5$d KB\n读保护：%6$s（option=0x%7$02X）\n支持命令：%8$s</string>
+    <string name="isp_rdp_none">无保护</string>
+    <string name="isp_rdp_level1">Level 1</string>
+    <string name="isp_rdp_level2">Level 2（解除会全片擦除）</string>
+
+    <string name="isp_section_log">运行日志</string>
+    <string name="isp_menu_save_log">导出日志</string>
+    <string name="isp_log_full">全屏</string>
+    <string name="isp_log_saved">日志已导出：%1$s</string>
+    <string name="isp_log_empty">日志为空</string>
+    <string name="isp_log_header">设备 %1$s (Android %2$s) · %3$d 8E1 · 进入方式 %4$d · 延时 %5$d ms · 固件 %6$s</string>
+    <string name="isp_toggle_collapsed">▸</string>
+    <string name="isp_toggle_expanded">▾</string>
+    <string name="isp_chip_summary_format">%1$s · %2$d KB · %3$s</string>
+    <string name="isp_menu_identify">芯片识别</string>
+    <string name="isp_menu_read_flash">读回 Flash 并保存</string>
+    <string name="isp_menu_option_bytes">选项字节</string>
+    <string name="isp_menu_debug">调试命令</string>
+    <string name="isp_menu_read_memory">读取内存</string>
+    <string name="isp_menu_clear_log">清除日志</string>
+    <string name="isp_menu_help">使用说明</string>
+    <string name="isp_menu_driver">关于 CH340 驱动</string>
+
+    <string name="isp_confirm_erase">全片擦除会清空芯片里原有的程序，确认继续？</string>
+    <string name="isp_confirm_rdp">解除读保护会立即全片擦除，且 Level 2 不可逆，确认继续？</string>
+    <string name="isp_confirm_write_option">写选项字节风险较高（写错可能锁死芯片或改变读/写保护），确认写入？</string>
+    <string name="isp_read_flash_saved">已保存 %1$s（%2$d KB）</string>
+    <string name="isp_read_flash_failed">读取 Flash 失败</string>
+
+    <string name="isp_option_bytes_title">选项字节 @ 0x%1$08X</string>
+    <string name="isp_option_pair">第 %1$d 对（值 / 反值）</string>
+    <string name="isp_option_read">重新读取</string>
+    <string name="isp_option_write">写入</string>
+    <string name="isp_option_written">选项字节已写入，复位后生效</string>
+    <string name="isp_option_incomplete">16 个字节都要填写（十六进制，如 AA）</string>
+    <string name="isp_option_f4_row0">OPTCR：LOCK=%1$d STRT=%2$d %3$s</string>
+    <string name="isp_option_f4_row1">USER：WDG_SW=%1$d nRST_STOP=%2$d nRST_STDBY=%3$d BFB2=%4$d</string>
+    <string name="isp_option_f4_row2">nWRP[7:0]=0x%1$02X（0=受保护 1=开放）</string>
+    <string name="isp_option_f4_row3">RDP：0x%1$02X %2$s</string>
+
+    <string name="isp_read_addr">起始地址（十六进制）</string>
+    <string name="isp_read">读取</string>
+    <string name="isp_read_len">长度（1–256 字节）</string>
+    <string name="isp_read_failed">读取失败</string>
+
+    <string name="isp_raw_hint">输入要发送的十六进制字节，如 7F 或 00 FF</string>
+    <string name="isp_send">发送</string>
+    <string name="isp_debug_title">调试命令（单步执行，用于排查接线与波特率）</string>
+    <string name="isp_dtr_high">DTR = HIGH</string>
+    <string name="isp_dtr_low">DTR = LOW</string>
+    <string name="isp_rts_high">RTS = HIGH</string>
+    <string name="isp_rts_low">RTS = LOW</string>
+
+    <string name="isp_driver_note_title">关于 CH340 驱动</string>
+    <string name="isp_driver_note">安卓内核不带 CH340/CH341 驱动，也不需要另装：本工具内置了对常见 USB 转串口芯片的驱动（CH340、CH341、CP2102、FT232/FT2232、PL2303、标准 CDC）。\n\n若扫描不到设备，请依次确认：\n1. 手机支持并开启了 OTG（部分机型需在开发者选项里允许 USB 调试供电）；\n2. 转接板供电正常，插入后通知栏会提示「已检测到 USB 设备」；\n3. 该芯片的 VID/PID 不在内置驱动范围内 —— 此时请换用 CH340/CP2102 转接板；\n4. 系统弹窗里点了「禁止」，可重新插拔后再连接并允许。</string>
+    <string name="isp_help_text">用途：通过 USB 转串口（CH340 等）把 .bin/.hex 固件下载到 STM32 片内 Flash，走的是芯片内部固化 Bootloader 的串口 ISP 协议（8 数据位 / 偶校验 / 1 停止位）。\n\n接线：转接板的 TX/RX 交叉接芯片的串口引脚（板上一般是 USART 的 TX↔板 RX），GND 必接；若要用「自动进入 Bootloader」，还需把 DTR→BOOT0、RTS→NRST（多数成品转接板已引出，或需自制小板）。\n\n步骤：\n1. 插上转接板 → 扫描并连接设备；\n2. 选择进入 Bootloader 的方式（默认 1：RTS 复位 + DTR 拉 BOOT0；没接这两条线就选 0 手动按键）；\n3. 选择固件：.hex 自带地址，.bin 需要在「BIN 起始地址」里填，通常是 08000000；\n4. 点「开始下载」。日志会逐步显示同步、擦除、写入、校验过程。\n\n注意：下载使用全片擦除，芯片里原有程序会被清空，需要保留请先用菜单里的「读回 Flash 并保存」备份。解除读保护同样会全片擦除。</string>
+
+    <string-array name="isp_baud_entries">
+        <item>9600</item>
+        <item>19200</item>
+        <item>38400</item>
+        <item>57600</item>
+        <item>115200</item>
+        <item>230400</item>
+        <item>460800</item>
+        <item>921600</item>
+    </string-array>
+
+    <string-array name="isp_boot_modes">
+        <item>0 手动按键（不使用 DTR/RTS）</item>
+        <item>1 RTS 高 + DTR 低(BOOT0) + RTS 低</item>
+        <item>2 RTS 低 + DTR 低(BOOT0) + RTS 高</item>
+        <item>3 RTS 高 + DTR 高(BOOT0) + RTS 低</item>
+        <item>4 RTS 低 + DTR 高(BOOT0) + RTS 高</item>
+        <item>5 DTR 高 + RTS 低(BOOT0) + DTR 低</item>
+        <item>6 DTR 低 + RTS 低(BOOT0) + DTR 高</item>
+        <item>7 DTR 高 + RTS 高(BOOT0) + DTR 低</item>
+        <item>8 DTR 低 + RTS 高(BOOT0) + DTR 高</item>
+        <item>9 DTR 低→高 复位脉冲（不用 RTS）</item>
+        <item>10 DTR 高→低 复位脉冲（不用 RTS）</item>
+        <item>11 RTS 低→高 复位脉冲（不用 DTR）</item>
+        <item>12 RTS 高→低 复位脉冲（不用 DTR）</item>
+        <item>13 DTR 保持低电平(BOOT0，不用 RTS)</item>
+        <item>14 DTR 保持高电平(BOOT0，不用 RTS)</item>
+        <item>15 RTS 保持低电平(BOOT0，不用 DTR)</item>
+        <item>16 RTS 保持高电平(BOOT0，不用 DTR)</item>
+    </string-array>
+
+    <string-array name="isp_debug_items">
+        <item>发送 0x7F 同步</item>
+        <item>GET 0x00 读命令表</item>
+        <item>GET_ID 0x02 读芯片型号</item>
+        <item>GET_VERSION 0x01 读版本与保护</item>
+        <item>标准擦除 0x43</item>
+        <item>扩展擦除 0x44</item>
+        <item>GO 0x21 跳转 0x08000000</item>
+        <item>解除写保护 0x73</item>
+        <item>解除读保护 0x92（会全片擦除）</item>
+        <item>读 Flash 容量寄存器</item>
+        <item>手动发送原始字节</item>
+        <item>线路自检（校验位是否正常）</item>
+    </string-array>
+
+    <string name="isp_linetest_ok">自检通过：四条探测命令均有回应，CH340 确实在发偶校验（8E1）。</string>
+    <string name="isp_linetest_no_parity">校验位未生效：0x7F、01 FE、02 FD 有回应，但 00 FF 无回应。只有「1 的个数为奇数」的字节被芯片收下，说明转串口实际按 8N1 发送，STM32 把 0x00 当成校验错误丢弃。请换 CH340G/CH341 或 CP2102 转接板（部分 CH340E、仿制芯片不支持偶校验）。</string>
+    <string name="isp_linetest_no_reply">完全无回应：请检查 TX/RX 是否交叉连接、GND 是否共地、波特率是否与芯片端一致；也可改用「0 手动按键」方式，手动拉高 BOOT0 后按复位。</string>
+</resources>

@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  STM32 固件下载页。全部用系统控件（无 AndroidX），可在 Layout Editor 里拖拽调整。
+  结构：设备 -> 下载参数 -> 固件 -> 操作/进度 -> 芯片信息（可折叠）-> 运行日志
+  颜色一律取 ?android:attr 主题属性，深浅色跟随系统。
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/sv_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- ===== 设备 ===== -->
+
+        <TextView
+            style="@style/IspSection"
+            android:text="@string/isp_section_device" />
+
+        <View style="@style/IspDivider" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <Spinner
+                android:id="@+id/sp_device"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_weight="1" />
+
+            <Button
+                android:id="@+id/btn_rescan"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/isp_rescan" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_connect"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/isp_connect" />
+
+            <TextView
+                android:id="@+id/tv_usb_state"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@string/isp_usb_disconnected"
+                android:textAppearance="?android:attr/textAppearanceSmall" />
+        </LinearLayout>
+
+        <!-- ===== 下载参数 ===== -->
+
+        <TextView
+            style="@style/IspSection"
+            android:text="@string/isp_section_params" />
+
+        <View style="@style/IspDivider" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <TextView
+                style="@style/IspLabel"
+                android:layout_gravity="center_vertical"
+                android:text="@string/isp_baud" />
+
+            <Spinner
+                android:id="@+id/sp_baud"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1" />
+
+            <TextView
+                style="@style/IspLabel"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="10dp"
+                android:text="@string/isp_step_delay" />
+
+            <EditText
+                android:id="@+id/et_delay"
+                android:layout_width="56dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:gravity="end"
+                android:imeOptions="actionDone"
+                android:importantForAutofill="no"
+                android:inputType="number"
+                android:maxLength="4"
+                android:text="@string/isp_delay_default" />
+        </LinearLayout>
+
+        <TextView
+            style="@style/IspLabel"
+            android:layout_marginTop="6dp"
+            android:text="@string/isp_boot_mode" />
+
+        <Spinner
+            android:id="@+id/sp_boot_mode"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/tv_boot_mode_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/isp_boot_mode_hint"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="?android:attr/textColorSecondary" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <TextView
+                style="@style/IspLabel"
+                android:layout_gravity="center_vertical"
+                android:text="@string/isp_bin_addr" />
+
+            <EditText
+                android:id="@+id/et_bin_addr"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:digits="0123456789abcdefABCDEFxX"
+                android:fontFamily="monospace"
+                android:hint="@string/isp_bin_addr_hint"
+                android:imeOptions="actionDone"
+                android:importantForAutofill="no"
+                android:inputType="textNoSuggestions"
+                android:maxLength="10"
+                android:rotation="0" />
+        </LinearLayout>
+
+        <CheckBox
+            android:id="@+id/cb_verify"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/isp_verify_each_page" />
+
+        <CheckBox
+            android:id="@+id/cb_run_after"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/isp_run_after" />
+
+        <!-- ===== 固件 ===== -->
+
+        <TextView
+            style="@style/IspSection"
+            android:text="@string/isp_section_firmware" />
+
+        <View style="@style/IspDivider" />
+
+        <Button
+            android:id="@+id/btn_pick_file"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/isp_pick_file" />
+
+        <TextView
+            android:id="@+id/tv_firmware"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:text="@string/isp_firmware_none"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="?android:attr/textColorSecondary" />
+
+        <!-- 最近打开过的固件：条目由代码填充（文件名 + 大小），长按可移除 -->
+        <TextView
+            android:id="@+id/tv_recent_title"
+            style="@style/IspLabel"
+            android:layout_marginTop="6dp"
+            android:text="@string/isp_recent_title"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/ll_recent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone" />
+
+        <!-- ===== 操作与进度 ===== -->
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_download"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1.4"
+                android:text="@string/isp_download" />
+
+            <Button
+                android:id="@+id/btn_cancel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:enabled="false"
+                android:text="@string/isp_cancel" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_erase"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/isp_erase_only" />
+
+            <Button
+                android:id="@+id/btn_verify"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/isp_verify_only" />
+
+            <Button
+                android:id="@+id/btn_run"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/isp_run" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/pb_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:max="100" />
+
+        <TextView
+            android:id="@+id/tv_progress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/isp_progress_idle"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+        <!-- ===== 芯片信息（默认只显示型号，点击展开） ===== -->
+
+        <TextView
+            style="@style/IspSection"
+            android:text="@string/isp_section_chip" />
+
+        <View style="@style/IspDivider" />
+
+        <LinearLayout
+            android:id="@+id/ll_chip_header"
+            style="@style/IspHeaderRow">
+
+            <TextView
+                android:id="@+id/tv_chip_summary"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/isp_chip_unknown"
+                android:textAppearance="?android:attr/textAppearanceMedium" />
+
+            <TextView
+                android:id="@+id/tv_chip_toggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="8dp"
+                android:text="@string/isp_toggle_collapsed"
+                android:textAppearance="?android:attr/textAppearanceSmall"
+                android:textColor="?android:attr/textColorSecondary" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_chip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:paddingBottom="6dp"
+            android:text="@string/isp_chip_unknown"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:visibility="gone" />
+
+        <!-- ===== 运行日志 ===== -->
+
+        <TextView
+            android:id="@+id/tv_log_title"
+            style="@style/IspSection"
+            android:text="@string/isp_section_log" />
+
+        <View style="@style/IspDivider" />
+
+        <ScrollView
+            android:id="@+id/sv_log"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_isp_box"
+            android:fadeScrollbars="false"
+            android:padding="2dp"
+            android:scrollbarStyle="insideOverlay">
+
+            <TextView
+                android:id="@+id/tv_log"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:lineSpacingExtra="1dp"
+                android:padding="4dp"
+                android:textAppearance="?android:attr/textAppearanceSmall"
+                android:textIsSelectable="true" />
+        </ScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_clear_log"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/isp_menu_clear_log" />
+
+            <Button
+                android:id="@+id/btn_save_log"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/isp_menu_save_log" />
+
+            <Button
+                android:id="@+id/btn_log_full"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/isp_log_full" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

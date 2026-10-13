@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Toolbox</string>
+    <string name="title_decibel">Decibel Meter</string>
+    <string name="tool_coming_soon">More tools (coming soon)</string>
+    <string name="tool_soon">Feature under development</string>
+    <string name="device_label">Microphone input device</string>
+    <string name="device_default">Default microphone</string>
+    <string name="refresh">Refresh</string>
+    <string name="db_unit">dB</string>
+    <string name="stat_max">Max</string>
+    <string name="stat_min">Min</string>
+    <string name="stat_leq">Leq</string>
+    <string name="spectrum_label">Frequency bands (1/1 octave)</string>
+    <string name="peak_band_none">Main band --</string>
+    <string name="peak_band_format">Main band %1$s (%2$d%%)</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
+    <string name="calibrate">Calibrate</string>
+    <string name="devices_found">Found %1$d input device(s)</string>
+    <string name="meter_start_failed">Failed to start capture. Check microphone permission or another device.</string>
+    <string name="meter_error">Capture error: %1$s</string>
+    <string name="need_mic_permission">Microphone permission is required to measure decibels</string>
+    <string name="info_format">dBFS %1$s · %2$d Hz · source %3$s · routed %4$s</string>
+    <string name="not_running">idle</string>
+    <string name="unknown">unknown</string>
+    <string name="cal_title">Calibration offset</string>
+    <string name="cal_current">Current offset %1$.1f dB (dBFS + offset = displayed)</string>
+    <string name="type_builtin_mic">Built-in mic</string>
+    <string name="type_wired_headset">Wired headset mic</string>
+    <string name="type_wired_headphones">Wired headphones</string>
+    <string name="type_bluetooth_sco">Bluetooth headset (SCO)</string>
+    <string name="type_ble_headset">Bluetooth headset (BLE)</string>
+    <string name="type_ble_speaker">BLE speaker</string>
+    <string name="type_usb_headset">USB headset</string>
+    <string name="type_usb_device">USB device</string>
+    <string name="type_usb_accessory">USB accessory</string>
+    <string name="type_fm">FM tuner</string>
+    <string name="type_tv">TV tuner</string>
+    <string name="type_telephony">Telephony</string>
+    <string name="type_aux_line">Aux line input</string>
+    <string name="type_remote_submix">Remote submix</string>
+    <string name="type_hdmi">HDMI</string>
+    <string name="type_unknown">Type %1$d</string>
+    <string name="title_dns">DNS Lookup</string>
+    <string name="dns_input_hint">Enter a domain, e.g. example.com</string>
+    <string name="dns_resolve">Resolve</string>
+    <string name="dns_resolve_all">Re-resolve all</string>
+    <string name="dns_long_press_hint">Long-press an address to copy it; long-press a domain to copy, re-resolve or remove it</string>
+    <string name="dns_resolving">Resolving…</string>
+    <string name="dns_result_format">%1$d IPv4 · %2$d IPv6 · %3$s</string>
+    <string name="dns_failed">Lookup failed: %1$s</string>
+    <string name="dns_copied">Copied %1$s</string>
+    <string name="dns_empty_input">Enter a domain first</string>
+    <string name="dns_empty_list">No domains yet: type one above and tap Resolve to add it</string>
+    <string name="dns_copy_domain">Copy domain</string>
+    <string name="dns_reparse">Re-resolve</string>
+    <string name="dns_delete">Remove from list</string>
+    <string name="dns_delete_confirm">Remove %1$s? You can add it again in the input box.</string>
+    <string name="lang_title">Language</string>
+    <string name="lang_auto">Follow system</string>
+    <string name="lang_zh">简体中文</string>
+    <string name="lang_en">English</string>
+
+    <!-- STM32 firmware download -->
+    <string name="title_isp">Firmware Flash</string>
+    <string name="isp_section_device">Device (USB serial)</string>
+    <string name="isp_rescan">Rescan</string>
+    <string name="isp_connect">Connect</string>
+    <string name="isp_disconnect">Disconnect</string>
+    <string name="isp_usb_disconnected">● Not connected</string>
+    <string name="isp_usb_connected">● Connected: %1$s</string>
+    <string name="isp_no_device">No USB serial device found</string>
+    <string name="isp_device_unsupported">Device not supported by the driver library: %1$s</string>
+    <string name="isp_permission_needed">Please allow USB access in the system dialog</string>
+    <string name="isp_open_failed">Failed to open port: %1$s</string>
+    <string name="isp_need_connection">Connect a USB serial device first</string>
+    <string name="isp_need_firmware">Select a firmware file first</string>
+    <string name="isp_busy">Wait for the current operation to finish</string>
+
+    <string name="isp_section_params">Parameters</string>
+    <string name="isp_baud">Baud rate</string>
+    <string name="isp_step_delay">Delay (ms)</string>
+    <string name="isp_delay_default">100</string>
+    <string name="isp_boot_mode">Bootloader entry method</string>
+    <string name="isp_boot_mode_hint">Pick the one matching your adapter wiring; if unsure choose "0 manual button", then pull BOOT0 high and press reset</string>
+    <string name="isp_bin_addr">BIN start address</string>
+    <string name="isp_bin_addr_hint">08000000</string>
+    <string name="isp_invalid_addr">Invalid start address, use hex such as 08000000</string>
+    <string name="isp_verify_each_page">Read back and verify each block (about twice as slow)</string>
+    <string name="isp_run_after">Run program after download</string>
+
+    <string name="isp_section_firmware">Firmware</string>
+    <string name="isp_pick_file">Select firmware (.bin / .hex)</string>
+    <string name="isp_firmware_none">No firmware selected</string>
+    <string name="isp_recent_title">Recent</string>
+    <string name="isp_recent_item">%1$s · %2$s bytes</string>
+    <string name="isp_recent_remove">Remove from recent list</string>
+    <string name="isp_recent_removed">Removed %1$s</string>
+    <string name="isp_recent_missing">%1$s can no longer be read (moved, deleted or access revoked) and was removed from the recent list</string>
+    <string name="isp_firmware_loaded">%1$s · %2$s bytes · %3$d segments · 0x%4$08X–0x%5$08X</string>
+    <string name="isp_file_read_failed">Failed to read file: %1$s</string>
+    <string name="isp_bin_empty">File is empty</string>
+    <string name="isp_bin_too_large">BIN file too large (%1$d bytes), please check the file</string>
+    <string name="isp_hex_no_colon">Line %1$d: missing leading colon</string>
+    <string name="isp_hex_bad_length">Line %1$d: invalid length</string>
+    <string name="isp_hex_line_too_long">Line %1$d: record too long</string>
+    <string name="isp_hex_bad_char">Line %1$d: non-hexadecimal character</string>
+    <string name="isp_hex_data_short">Line %1$d: data shorter than length field</string>
+    <string name="isp_hex_checksum">Line %1$d: checksum error</string>
+    <string name="isp_hex_no_record">No data records in file</string>
+    <string name="isp_unsupported_format">Only .bin and Intel .hex files are supported</string>
+
+    <string name="isp_download">Start download</string>
+    <string name="isp_cancel">Abort</string>
+    <string name="isp_erase_only">Erase only</string>
+    <string name="isp_verify_only">Verify</string>
+    <string name="isp_run">Exit &amp; run</string>
+    <string name="isp_progress_idle">Idle</string>
+    <string name="isp_status_erasing">Erasing</string>
+    <string name="isp_status_verify_erase">Checking erase</string>
+    <string name="isp_status_writing">Writing</string>
+    <string name="isp_status_verifying">Verifying</string>
+    <string name="isp_status_reading">Reading flash</string>
+    <string name="isp_status_done">Done</string>
+    <string name="isp_status_failed">Failed</string>
+    <string name="isp_task_failed_hint">Operation failed, check the ERR lines in the log</string>
+
+    <string name="isp_section_chip">Chip info</string>
+    <string name="isp_chip_unknown">Not read</string>
+    <string name="isp_chip_info">Model: %1$s\nPID: 0x%2$04X  Bootloader: 0x%3$02X\nFlash: %4$d KB  SRAM: %5$d KB\nRead protection: %6$s (option=0x%7$02X)\nSupported commands: %8$s</string>
+    <string name="isp_rdp_none">None</string>
+    <string name="isp_rdp_level1">Level 1</string>
+    <string name="isp_rdp_level2">Level 2 (unprotect wipes flash)</string>
+
+    <string name="isp_section_log">Log</string>
+    <string name="isp_menu_save_log">Save log</string>
+    <string name="isp_log_full">Full</string>
+    <string name="isp_log_saved">Log saved: %1$s</string>
+    <string name="isp_log_empty">Log is empty</string>
+    <string name="isp_log_header">Device %1$s (Android %2$s) · %3$d 8E1 · entry mode %4$d · delay %5$d ms · firmware %6$s</string>
+    <string name="isp_toggle_collapsed">▸</string>
+    <string name="isp_toggle_expanded">▾</string>
+    <string name="isp_chip_summary_format">%1$s · %2$d KB · %3$s</string>
+    <string name="isp_menu_identify">Identify chip</string>
+    <string name="isp_menu_read_flash">Read back flash…</string>
+    <string name="isp_menu_option_bytes">Option bytes…</string>
+    <string name="isp_menu_debug">Debug commands…</string>
+    <string name="isp_menu_read_memory">Read memory…</string>
+    <string name="isp_menu_clear_log">Clear log</string>
+    <string name="isp_menu_help">How to use</string>
+    <string name="isp_menu_driver">About CH340 driver</string>
+
+    <string name="isp_confirm_erase">Full chip erase removes the program already in the chip. Continue?</string>
+    <string name="isp_confirm_rdp">Unprotecting read protection erases the whole chip and Level 2 is irreversible. Continue?</string>
+    <string name="isp_confirm_write_option">Writing option bytes is risky (a wrong value can lock the chip or change protection). Write anyway?</string>
+    <string name="isp_read_flash_saved">Saved %1$s (%2$d KB)</string>
+    <string name="isp_read_flash_failed">Flash read failed</string>
+
+    <string name="isp_option_bytes_title">Option bytes @ 0x%1$08X</string>
+    <string name="isp_option_pair">Pair %1$d (value / complement)</string>
+    <string name="isp_option_read">Re-read</string>
+    <string name="isp_option_write">Write</string>
+    <string name="isp_option_written">Option bytes written, effective after reset</string>
+    <string name="isp_option_incomplete">All 16 bytes must be filled in (hex, e.g. AA)</string>
+    <string name="isp_option_f4_row0">OPTCR: LOCK=%1$d STRT=%2$d %3$s</string>
+    <string name="isp_option_f4_row1">USER: WDG_SW=%1$d nRST_STOP=%2$d nRST_STDBY=%3$d BFB2=%4$d</string>
+    <string name="isp_option_f4_row2">nWRP[7:0]=0x%1$02X (0=protected 1=open)</string>
+    <string name="isp_option_f4_row3">RDP: 0x%1$02X %2$s</string>
+
+    <string name="isp_read_addr">Start address (hex)</string>
+    <string name="isp_read">Read</string>
+    <string name="isp_read_len">Length (1–256 bytes)</string>
+    <string name="isp_read_failed">Read failed</string>
+
+    <string name="isp_raw_hint">Hex bytes to send, e.g. 7F or 00 FF</string>
+    <string name="isp_send">Send</string>
+    <string name="isp_debug_title">Debug commands (step by step, for wiring and baud rate)</string>
+    <string name="isp_dtr_high">DTR = HIGH</string>
+    <string name="isp_dtr_low">DTR = LOW</string>
+    <string name="isp_rts_high">RTS = HIGH</string>
+    <string name="isp_rts_low">RTS = LOW</string>
+
+    <string name="isp_driver_note_title">About the CH340 driver</string>
+    <string name="isp_driver_note">Android has no kernel driver for CH340/CH341, and none is needed: this tool ships drivers for the common USB-to-serial chips (CH340, CH341, CP2102, FT232/FT2232, PL2303, standard CDC).\n\nIf no device is found, check in order:\n1. the phone supports and enables OTG (some models need USB permission in developer options);\n2. the adapter is powered — the status bar should show "USB device detected";\n3. the chip VID/PID is not in the built-in driver list — use a CH340/CP2102 adapter instead;\n4. "Deny" was tapped in the system dialog — unplug, reconnect and allow it.</string>
+    <string name="isp_help_text">Purpose: download .bin/.hex firmware into the STM32 internal flash over a USB-to-serial adapter (CH340 etc.), using the serial ISP protocol of the bootloader burned into the chip (8 data bits / even parity / 1 stop bit).\n\nWiring: cross TX/RX between the adapter and the chip UART, GND must be connected. To enter the bootloader automatically you also need DTR→BOOT0 and RTS→NRST (many breakout adapters expose these pins).\n\nSteps:\n1. Plug in the adapter → rescan → connect;\n2. choose the bootloader entry method (default 1: RTS reset + DTR for BOOT0; pick 0 manual if those two lines are not wired);\n3. select firmware: .hex carries its own addresses, .bin needs the "BIN start address" field (usually 08000000);\n4. tap "Start download". The log shows sync, erase, write and verify step by step.\n\nNote: downloading performs a full chip erase, so the program already in the chip is removed — use "Read back flash" in the menu first if you want a backup. Removing read protection also erases everything.</string>
+
+    <string-array name="isp_baud_entries">
+        <item>9600</item>
+        <item>19200</item>
+        <item>38400</item>
+        <item>57600</item>
+        <item>115200</item>
+        <item>230400</item>
+        <item>460800</item>
+        <item>921600</item>
+    </string-array>
+
+    <string-array name="isp_boot_modes">
+        <item>0 Manual button (no DTR/RTS)</item>
+        <item>1 RTS high + DTR low (BOOT0) + RTS low</item>
+        <item>2 RTS low + DTR low (BOOT0) + RTS high</item>
+        <item>3 RTS high + DTR high (BOOT0) + RTS low</item>
+        <item>4 RTS low + DTR high (BOOT0) + RTS high</item>
+        <item>5 DTR high + RTS low (BOOT0) + DTR low</item>
+        <item>6 DTR low + RTS low (BOOT0) + DTR high</item>
+        <item>7 DTR high + RTS high (BOOT0) + DTR low</item>
+        <item>8 DTR low + RTS high (BOOT0) + DTR high</item>
+        <item>9 DTR low→high reset pulse (no RTS)</item>
+        <item>10 DTR high→low reset pulse (no RTS)</item>
+        <item>11 RTS low→high reset pulse (no DTR)</item>
+        <item>12 RTS high→low reset pulse (no DTR)</item>
+        <item>13 Keep DTR low (BOOT0, no RTS)</item>
+        <item>14 Keep DTR high (BOOT0, no RTS)</item>
+        <item>15 Keep RTS low (BOOT0, no DTR)</item>
+        <item>16 Keep RTS high (BOOT0, no DTR)</item>
+    </string-array>
+
+    <string-array name="isp_debug_items">
+        <item>Send 0x7F sync</item>
+        <item>GET 0x00 command list</item>
+        <item>GET_ID 0x02 chip identity</item>
+        <item>GET_VERSION 0x01 version and protection</item>
+        <item>Standard erase 0x43</item>
+        <item>Extended erase 0x44</item>
+        <item>GO 0x21 jump to 0x08000000</item>
+        <item>Write unprotect 0x73</item>
+        <item>Readout unprotect 0x92 (erases everything)</item>
+        <item>Read flash size register</item>
+        <item>Send raw bytes</item>
+        <item>Line self-test (parity check)</item>
+    </string-array>
+
+    <string name="isp_linetest_ok">Self-test passed: all four probes were answered, the adapter really sends even parity (8E1).</string>
+    <string name="isp_linetest_no_parity">Parity not in effect: 7F, 01 FE and 02 FD were answered but 00 FF was not. Only bytes with an odd number of set bits are accepted, so the adapter is transmitting 8N1 and the STM32 discards 0x00 as a parity error. Use a genuine CH340G/CH341 or a CP2102 adapter (some CH340E and clone chips do not support even parity).</string>
+    <string name="isp_linetest_no_reply">No answer at all: check that TX/RX are crossed and GND is common, and that the baud rate matches the chip. You can also switch to mode 0 (manual button) and pull BOOT0 high before pressing reset.</string>
+</resources>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  本工具支持的 USB 转串口芯片：插入这些设备时，系统会询问是否用「工具箱」打开，
+  选中后即可直接连接。十进制数值对应驱动库里的 VID/PID：
+  0x1A86=6790(WCH) 0x7523=29987(CH340) 0x7522=29986(CH341)
+  0x10AC=4268(Silicon Labs) 0xEA60=60000(CP210x)
+  0x0403=1027(FTDI) 0x6001=24577(FT232R) 0x6010=24592(FT2232)
+  0x067B=1659(Prolific) 0x2303=8963(PL2303)
+-->
+<resources>
+    <!-- WCH CH340 / CH341：STM32 控制板最常用的转串口芯片 -->
+    <usb-device vendor-id="6790" product-id="29987" />
+    <usb-device vendor-id="6790" product-id="29986" />
+    <!-- Silicon Labs CP2102 / CP210x -->
+    <usb-device vendor-id="4268" product-id="60000" />
+    <!-- FTDI FT232R / FT2232 -->
+    <usb-device vendor-id="1027" product-id="24577" />
+    <usb-device vendor-id="1027" product-id="24592" />
+    <!-- Prolific PL2303 -->
+    <usb-device vendor-id="1659" product-id="8963" />
+</resources>

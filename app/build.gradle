@@ -1,0 +1,38 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.decibelmeter.app'
+    compileSdk 37
+
+    defaultConfig {
+        applicationId "com.decibelmeter.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
+
+dependencies {
+    // USB 串口驱动库（CH340/CH341、CP210x、FTDI 等），STM32 串口下载需要它。
+    // 库本身是 Java 实现，androidx.annotation / kotlin-stdlib 只是编译期注解依赖，
+    // 运行期用不到，排除后工程继续保持 useAndroidX=false 且 dex 不增大。
+    implementation('com.github.mik3y:usb-serial-for-android:3.9.0') {
+        exclude group: 'androidx.annotation'
+        exclude group: 'org.jetbrains.kotlin'
+        exclude group: 'org.jetbrains', module: 'annotations'
+    }
+}

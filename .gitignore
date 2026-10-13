@@ -1,0 +1,48 @@
+# ===== 编译产物与构建缓存 =====
+build/
+.gradle/
+.cxx/
+.externalNativeBuild/
+captures/
+*.iml
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+lint-results*
+release/
+debug/
+
+# ===== IDE 与工具元数据 =====
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+.kotlin/
+*.swp
+*~
+
+# 本机 SDK 路径，换机器要重新生成，且含个人目录信息
+local.properties
+
+# ===== 本机调试遗留（非源码，体积大）=====
+# Android Studio Python 插件在本工程目录下落的解释器缓存
+/Python/
+# 真机截图、临时校验产物
+/_verify/
+*.log
+
+# ===== 签名与凭据：任何情况下都不入库 =====
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+.env
+secrets*
+*token*
+*.rmi
+passwords*
+
+# 说明：gradle/wrapper/gradle-wrapper.jar 属于构建必需文件，不在排除范围内。
