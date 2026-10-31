@@ -466,7 +466,7 @@
     <string name="rdp_add_title">新建远程桌面连接</string>
     <string name="rdp_edit_title">编辑连接</string>
     <string name="rdp_name_hint">名称（可留空，默认用地址）</string>
-    <string name="rdp_host_hint">IP 或域名（如 192.168.5.73 / nas.lan）</string>
+    <string name="rdp_host_hint">IP 或域名（如 192.168.1.100 / nas.lan）</string>
     <string name="rdp_port_hint">端口（默认 3389）</string>
     <string name="rdp_bad_host">地址只能填 IP 或域名：字母、数字、点、横线，不能有空格</string>
     <string name="rdp_bad_port">端口要在 1–65535</string>

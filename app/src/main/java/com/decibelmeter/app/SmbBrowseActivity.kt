@@ -448,7 +448,7 @@ class SmbBrowseActivity : ComposeBaseActivity() {
     /**
      * 从收藏直达。
      *
-     * 标题取最近主机里记住的显示名：用户认的是「XXS」这种机器名，直接拿 IP 当标题
+     * 标题取最近主机里记住的显示名：用户认的是「PC-HOME」这种机器名，直接拿 IP 当标题
      * 等于每次都让人心里确认一遍「这是哪台」。
      */
     private fun openBookmark(mark: SmbSettings.Bookmark) {

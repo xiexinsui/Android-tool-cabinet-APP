@@ -465,7 +465,7 @@
     <string name="rdp_add_title">New remote-desktop connection</string>
     <string name="rdp_edit_title">Edit connection</string>
     <string name="rdp_name_hint">Name (optional, address is used when empty)</string>
-    <string name="rdp_host_hint">IP or domain (e.g. 192.168.5.73 / nas.lan)</string>
+    <string name="rdp_host_hint">IP or domain (e.g. 192.168.1.100 / nas.lan)</string>
     <string name="rdp_port_hint">Port (default 3389)</string>
     <string name="rdp_bad_host">Use an IP or a domain: letters, digits, dots and dashes only, no spaces</string>
     <string name="rdp_bad_port">Port must be between 1 and 65535</string>
