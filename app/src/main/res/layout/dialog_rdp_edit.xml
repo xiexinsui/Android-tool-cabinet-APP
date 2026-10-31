@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 连接簿条目只描述「连哪儿」；账号密码另走 CredentialDialog，避免一份凭据两处落盘 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingLeft="20dp"
+    android:paddingTop="8dp"
+    android:paddingRight="20dp"
+    android:paddingBottom="4dp">
+
+    <EditText
+        android:id="@+id/et_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/rdp_name_hint"
+        android:importantForAutofill="no"
+        android:inputType="textNoSuggestions"
+        android:maxLines="1" />
+
+    <EditText
+        android:id="@+id/et_host"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/rdp_host_hint"
+        android:importantForAutofill="no"
+        android:inputType="textUri"
+        android:maxLines="1" />
+
+    <EditText
+        android:id="@+id/et_port"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/rdp_port_hint"
+        android:importantForAutofill="no"
+        android:inputType="number"
+        android:maxLength="5"
+        android:maxLines="1" />
+</LinearLayout>

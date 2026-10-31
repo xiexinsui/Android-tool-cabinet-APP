@@ -45,4 +45,8 @@ secrets*
 *.rmi
 passwords*
 
+# 内置远程桌面的原生层：cargo 中间产物与编出来的 .so（都是构建产物，按需重编）
+rdpcore/target/
+app/src/main/jniLibs/**/*.so
+
 # 说明：gradle/wrapper/gradle-wrapper.jar 属于构建必需文件，不在排除范围内。

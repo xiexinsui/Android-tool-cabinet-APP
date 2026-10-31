@@ -1,6 +1,39 @@
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
+
+import javax.inject.Inject
+
 plugins {
     id 'com.android.application'
+    // Kotlin 支持自 AGP 9 起已内置，不需要再套 org.jetbrains.kotlin.android；
+    // Compose 编译器插件仍要显式应用（它负责把 @Composable 展开成重组代码）
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
+
+// ---- 版本号：根目录 version.properties，每次要产出/安装 APK 时自增 ----------------
+// 放在配置阶段（而不是某个 task 里）：versionCode/versionName 必须在 android {} 配置时
+// 就是最终值，否则 APK 里写的是上一次的号。lint 之类的任务不会触发自增。
+def versionProps = new Properties()
+def versionFile = rootProject.file('version.properties')
+if (versionFile.isFile()) {
+    versionFile.withInputStream { versionProps.load(it) }
+}
+boolean buildingApk = gradle.startParameter.taskNames.any { name ->
+    def n = name.toLowerCase(Locale.ROOT)
+    // :app:assembleDebug / :app:installDebug / :app:bundleDebug / :app:packageDebug…
+    n.contains('assemble') || n.contains('install') || n.contains('bundle') || n.contains('package')
+}
+if (buildingApk) {
+    int code = (versionProps.getProperty('versionCode', '0') as int) + 1
+    String[] parts = versionProps.getProperty('versionName', '0.0').split(/[.]/)
+    parts[parts.length - 1] = ((parts[parts.length - 1] as int) + 1).toString()
+    versionProps.setProperty('versionCode', code.toString())
+    versionProps.setProperty('versionName', parts.join('.'))
+    versionFile.withWriter('UTF-8') { w -> versionProps.store(w, null) }
+}
+def appVersionCode = versionProps.getProperty('versionCode', '1') as int
+def appVersionName = versionProps.getProperty('versionName', '1.0')
 
 android {
     namespace 'com.decibelmeter.app'
@@ -10,13 +43,21 @@ android {
         applicationId "com.decibelmeter.app"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
+    }
+
+    buildFeatures {
+        // 共享文件的浏览页与预览页（缩略图网格、翻页、Material3 主题）
+        compose true
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+        // SMBJ 的 msdtyp.FileTime 引用了 java.time.Instant，java.nio.file 只出现在可选的
+        // smbfs 包里。开启核心库脱糖后，API 24/25 这两台机器上 SMBJ 通道不会因为缺类而崩。
+        coreLibraryDesugaringEnabled true
     }
 
     buildTypes {
@@ -26,13 +67,235 @@ android {
     }
 }
 
+// APK 文件名带上版本：工具箱-1.31.apk（AGP 9 的 VariantOutput.outputFileName）
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.forEach { output ->
+            output.outputFileName.set("工具箱-${output.versionName.get()}.apk")
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
 dependencies {
     // USB 串口驱动库（CH340/CH341、CP210x、FTDI 等），STM32 串口下载需要它。
     // 库本身是 Java 实现，androidx.annotation / kotlin-stdlib 只是编译期注解依赖，
-    // 运行期用不到，排除后工程继续保持 useAndroidX=false 且 dex 不增大。
+    // 运行期用不到，排除掉可以让 dex 少背两个纯注解/标准库依赖。
     implementation('com.github.mik3y:usb-serial-for-android:3.9.0') {
         exclude group: 'androidx.annotation'
         exclude group: 'org.jetbrains.kotlin'
         exclude group: 'org.jetbrains', module: 'annotations'
+    }
+
+    // 局域网共享文件浏览。jcifs-ng 是唯一能枚举共享（srvsvc NetrShareEnum）的纯 Java 库，
+    // SMBJ 到 0.15.0 都只有 connectShare(name)（已在 jar 里 grep 过，确实没有 srvsvc），
+    // 共享名得手输，做不到「打开就看到共享列表」——所以它继续是默认引擎。
+    // 包名已重定位为 org.codelibs.jcifs；compile 依赖只有 slf4j-api + bcprov-jdk18on。
+    implementation 'org.codelibs:jcifs:3.0.4'
+
+    // SMBJ：只作为「文件读取/传输」的可选实验引擎（SmbSettings 里切换），
+    // 共享与目录枚举始终走 jcifs-ng。它带来的运行期依赖：slf4j-api、bcprov-jdk18on（与
+    // jcifs-ng 共用）、mbassador（事件总线）、asn-one（SMB3 的 DER 编解码）。
+    implementation 'com.hierynomus:smbj:0.15.0'
+
+    // 核心库脱糖的运行时（java.time 等），只在 API 24/25 上真正打进 dex
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+
+    // ---------------------------------------------------------------------
+    // 共享文件的浏览与预览（Compose + Coil + Media3）
+    // ---------------------------------------------------------------------
+    implementation platform('androidx.compose:compose-bom:2026.09.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.foundation:foundation'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-core'
+    implementation 'androidx.activity:activity-compose:1.13.0'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+
+    // 缩略图与全屏图的加载/缓存。不引 coil-network-*：图片字节由自写的 smb:// Fetcher 直接从
+    // SMB 连接里取，不需要 HTTP 那一跳。
+    implementation 'io.coil-kt.coil3:coil-compose:3.6.3'
+
+    // 视频/音频边取边播。datasource 由 exoplayer 传递带入，播的是本机回环 HTTP（见 SmbHttpProxy）
+    implementation 'androidx.media3:media3-exoplayer:1.11.1'
+    implementation 'androidx.media3:media3-ui:1.11.1'
+}
+
+
+// ---------------------------------------------------------------------------
+// 内置远程桌面的原生层（rdpcore/，Rust）
+//
+// 默认**不参与构建**：没装 Rust 与 NDK 的人照样能 assembleDebug，只是没有内置通道——
+// RdpNative.isAvailable() 会返回 false，界面上「内置连接（实验）」这个入口自动收起，
+// handoff 那条路照常可用。要打开就在 local.properties 写 rdpNative.enabled=true。
+//
+// 产物落在 app/src/main/jniLibs/<abi>/librdpcore.so，是编译产物，已进 .gitignore。
+// ---------------------------------------------------------------------------
+// 交叉编译那几条"本机才知道"的配置（要不要打开、cargo 在哪、LIB 指向哪套 SDK）读
+// gitignore 掉的 local.properties，不写进仓库里的 gradle.properties——换机器时构建不会
+// 因为一条别人电脑上的绝对路径崩在配置阶段，没装 Rust/NDK 的人也不必手动去关开关。
+// findProperty 只看 gradle.properties，所以这里手工读一次。
+def localProps = new Properties()
+def localPropsFile = new File(rootDir, 'local.properties')
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
+}
+def nativeProp = { String key ->
+    (findProperty(key) ?: localProps.getProperty(key) ?: '').toString().trim()
+}
+
+def rdpNativeEnabled = nativeProp('rdpNative.enabled') == 'true'
+
+/** NDK 路径：显式属性 > 环境变量 > SDK 目录里版本号最大的那份 ndk。 */
+def resolveNdkDir = {
+    def explicit = nativeProp('rdpNative.ndk')
+    if (explicit) {
+        return file(explicit)
+    }
+    def env = System.getenv('ANDROID_NDK_HOME')
+    if (env) {
+        return file(env)
+    }
+    def sdkLocal = new File(rootDir, 'local.properties')
+    def sdkDir = null
+    if (sdkLocal.exists()) {
+        def props = new Properties()
+        sdkLocal.withInputStream { props.load(it) }
+        def sdk = props.getProperty('sdk.dir')
+        if (sdk) {
+            sdkDir = new File(sdk.replace('\\', '/'))
+        }
+    }
+    if (sdkDir == null) {
+        return null
+    }
+    def ndkRoot = new File(sdkDir, 'ndk')
+    if (!ndkRoot.isDirectory()) {
+        return null
+    }
+    // 同时装了多版 NDK 时取最新的（按数字逐段比，字符串序会把 9 排在 10 后面）：
+    // Rust 侧只需要 clang + sysroot，版本越新越省事
+    def versions = ndkRoot.listFiles().findAll { it.isDirectory() }.sort { a, b ->
+        def pa = a.name.split('\\.').collect { it.isNumber() ? it.toInteger() : 0 }
+        def pb = b.name.split('\\.').collect { it.isNumber() ? it.toInteger() : 0 }
+        def n = Math.max(pa.size(), pb.size())
+        for (int i = 0; i < n; i++) {
+            def x = i < pa.size() ? pa[i] : 0
+            def y = i < pb.size() ? pb[i] : 0
+            if (x != y) {
+                return x <=> y
+            }
+        }
+        return 0
+    }
+    return versions ? versions[-1] : null
+}
+
+if (rdpNativeEnabled) {
+    def ndkDir = resolveNdkDir()
+    if (ndkDir == null || !new File(ndkDir, 'toolchains/llvm/prebuilt').isDirectory()) {
+        throw new GradleException("rdpNative.enabled=true 但找不到 NDK。" +
+                "装好后用 local.properties 的 rdpNative.ndk=<路径> 指过来，" +
+                "或把 rdpNative.enabled 改回 false。")
+    }
+    // clang 是 Windows 可执行文件，参数里的路径必须是 D:/... 这种形式：
+    // 传 MSYS 风格的 /d/... 它会当成相对路径，于是 sysroot 里一个库都找不到（实测踩过）
+    def llvmBin = new File(ndkDir, 'toolchains/llvm/prebuilt/windows-x86_64').path
+            .replace('\\', '/')
+    def sysroot = "$llvmBin/sysroot"
+
+    // IronRDP 的 TLS 后端（rustls → aws-lc-sys）带 C 与汇编，要在宿主上跑 build script，
+    // 而 build script 本身是宿主可执行文件——这台机器装了 MSVC 编译器但默认环境里没有
+    // LIB，链接时就找不到 ucrt.lib。所以要么从 Developer Prompt 里跑构建（LIB 已经在环境
+    // 里），要么在 local.properties 用 rdpNative.lib 显式给一份。
+    def hostLib = nativeProp('rdpNative.lib') ?: System.getenv('LIB')
+    if (hostLib.toString().trim().isEmpty()) {
+        throw new GradleException("rdpNative.enabled=true 但既没有 rdpNative.lib 也没有环境里的 " +
+                "LIB：IronRDP 的依赖里有需要在宿主上链接的 build script（aws-lc-sys），缺 LIB " +
+                "一定链不动。在 Developer Command Prompt 里跑，或把 " +
+                "rdpNative.lib=<Windows SDK 与 VS 的 lib 目录，';' 分隔> 写进 local.properties。")
+    }
+
+    // Rust 三元组 → jniLibs 的 ABI 目录名
+    def targets = [
+            'aarch64-linux-android'  : 'arm64-v8a',
+            'armv7-linux-androideabi': 'armeabi-v7a',
+    ]
+
+    def buildRdpCore = tasks.register('buildRdpCore', RdpCoreBuildTask) {
+        description = '交叉编译 rdpcore 到各 ABI 并放进 jniLibs'
+        crateDir = new File(rootDir, 'rdpcore')
+        // 从 Android Studio 里跑构建时 PATH 常常不含 ~/.cargo/bin，所以留一个显式路径的口子
+        cargoExe = nativeProp('rdpNative.cargo') ?: 'cargo'
+        clangExe = "$llvmBin/bin/clang.exe"
+        arExe = "$llvmBin/bin/llvm-ar.exe"
+        sysrootDir = sysroot
+        hostLibPath = hostLib
+        outputRoot = new File(projectDir, 'src/main/jniLibs')
+        targetsToBuild = targets
+    }
+
+    tasks.named('preBuild') { dependsOn buildRdpCore }
+}
+
+/**
+ * 交叉编译 rdpcore 并投递到 jniLibs。
+ *
+ * 写成任务类而不是 doLast 闭包：Gradle 9 移除了 `Project.exec`，执行外部程序要用注入的
+ * {@link ExecOperations}。链接参数里的路径必须是 Windows 风格（见上面的注释），三元组后面
+ * 跟的 `24` 是 Android API 级别，与 minSdk 对齐。
+ */
+abstract class RdpCoreBuildTask extends DefaultTask {
+    @Inject abstract ExecOperations getExecOps()
+
+    @Internal File crateDir
+    @Internal String cargoExe
+    @Internal String clangExe
+    @Internal String arExe
+    @Internal String sysrootDir
+    @Internal String hostLibPath
+    @Internal File outputRoot
+    @Internal Map<String, String> targetsToBuild = [:]
+
+    @TaskAction
+    void buildNative() {
+        targetsToBuild.each { triple, abi ->
+            String envKey = triple.toUpperCase().replace('-', '_')
+            // cc-rs 找交叉编译器时认的是下划线形式的三元组，不是 cargo 的连字符形式
+            String ccKey = triple.replace('-', '_')
+            execOps.exec {
+                workingDir crateDir
+                executable cargoExe
+                args 'build', '--release', '--target', triple
+                environment "CARGO_TARGET_${envKey}_LINKER", clangExe
+                // 链接按 API 26 走：声音走 AAudio（libaaudio.so 从 26 才有桩库）。
+                // 代价是这个 .so 在 Android 7.x 上加载失败——RdpNative.isAvailable() 会
+                // 收起内置远程桌面入口，应用其它部分不受影响
+                environment "CARGO_TARGET_${envKey}_RUSTFLAGS",
+                        "-C link-arg=--target=${triple}26 -C link-arg=--sysroot=${sysrootDir}"
+                // 依赖树里的 C 代码（aws-lc）要用同一个 NDK clang 编，且必须拿到目标与 sysroot
+                environment "CC_$ccKey", clangExe
+                environment "AS_$ccKey", clangExe
+                environment "AR_$ccKey", arExe
+                environment "CFLAGS_$ccKey", "--target=${triple}24 --sysroot=$sysrootDir"
+                environment 'LIB', hostLibPath
+            }
+            File built = new File(crateDir, "target/$triple/release/librdpcore.so")
+            if (!built.isFile()) {
+                throw new GradleException("cargo 跑完了但没有 ${built.path}")
+            }
+            File outDir = new File(outputRoot, abi)
+            outDir.mkdirs()
+            java.nio.file.Files.copy(built.toPath(),
+                    new File(outDir, 'librdpcore.so').toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            logger.lifecycle("rdpcore → ${abi}（${(built.length() / 1024) as int} KB）")
+        }
     }
 }

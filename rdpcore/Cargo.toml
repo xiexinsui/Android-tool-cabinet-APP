@@ -1,0 +1,37 @@
+[package]
+name = "rdpcore"
+version = "0.1.0"
+edition = "2021"
+description = "工具箱内置远程桌面的原生层：IronRDP 会话 + 帧缓冲 + 输入转发，经手写 JNI 暴露给 Java"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+# 协议层不自研：IronRDP 已实现 NLA/CredSSP（NTLM + Kerberos），而这台虚拟机实测强制 NLA，
+# 手写这条路的正确性代价太高。只引 facade——它把 ironrdp-client 重导出成 ironrdp::client，
+# 依赖树少一层版本对齐的风险。TLS 走 rustls（纯 Rust）：选 native-tls 就得在安卓上
+# 交叉编译 OpenSSL，那正是当年 FreeRDP 路线卡死的地方。
+[dependencies]
+# client-sound 打开 RDPSND（声音）：ironrdp-client 会用 cpal 的 Android 后端（AAudio）播放。
+# cpal 要求 ndk-context 里有 JavaVM + Context，由 nativeStart 从 Java 侧初始化一次。
+ironrdp = { version = "0.17", features = ["client", "rustls", "connector", "session", "graphics", "input", "client-sound", "client-rdpdr"] }
+tokio = { version = "1", features = ["rt", "net", "io-util", "time", "macros", "sync"] }
+ndk-context = "0.1"
+# 只为读音频包计数（连接详情里的诊断）
+ironrdp-rdpsnd-native = "0.7"
+# 依赖树里的 tracing 开着 "log" 特性：装一个转发到 logcat 的 logger，cpal/RDPSND 的错误
+# 才能在 adb logcat 里看见（否则 error! 会被直接丢掉，声音不响时完全无从查起）
+log = "0.4"
+android_logger = "0.15"
+
+# 声音后端只用 PCM：上游默认把 opus 打开（要 CMake 编 libopus），这里换成关掉 opus 的副本
+[patch.crates-io]
+ironrdp-rdpsnd-native = { path = "third_party/ironrdp-rdpsnd-native" }
+
+[profile.release]
+# 内置客户端要进 APK：按体积优化。debug 依赖树编出来已经很大，release 必须压
+opt-level = "z"
+lto = "thin"
+strip = "debuginfo"
+panic = "abort"

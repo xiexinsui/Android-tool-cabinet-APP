@@ -44,6 +44,12 @@ public class ToolBoxActivity extends BaseActivity {
         tools.add(new Tool(R.string.title_decibel, MainActivity.class));
         tools.add(new Tool(R.string.title_dns, DnsActivity.class));
         tools.add(new Tool(R.string.title_isp, IspActivity.class));
+        // 局域网扫描、共享文件夹、远程桌面合成一个入口：三者面向的是同一批设备，
+        // 分开列会让人先想「我该点哪个」而不是直接点那台机器
+        tools.add(new Tool(R.string.title_lan, LanScanActivity.class));
+        // 「已下载 / 最近打开」不挂在局域网页里：它的数据跟连的是哪台机器无关，
+        // 而局域网的每个入口都是「一台机器 + 一个目录」
+        tools.add(new Tool(R.string.smb_downloads_title, SmbDownloadsActivity.class));
         tools.add(new Tool(R.string.tool_coming_soon, null));
 
         List<String> names = new ArrayList<>();

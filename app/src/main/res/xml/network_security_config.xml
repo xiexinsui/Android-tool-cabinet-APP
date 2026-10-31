@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    只有本机回环地址允许明文 HTTP。
+
+    共享文件的视频/音频是「SMB 随机读 → 127.0.0.1 上的极小 HTTP 服务 → Media3」这条链路播的
+    （见 SmbHttpProxy），而 Android 9 起默认禁掉明文流量。这里按域名放行，不给全局
+    usesCleartextTraffic=true：那等于允许应用里任何一处 http 请求走明文，代价和收益完全不对称。
+
+    SMB 本身不经过这个配置——jcifs-ng 和 SMBJ 都是直接开 445/139 端口的 socket，不走 HTTP 栈。
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

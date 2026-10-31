@@ -3,6 +3,29 @@
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 局域网扫描要读本机网段（ConnectivityManager 的链路地址），这是安装时自动授予的普通权限 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- SSDP 要收 UPnP 组播响应；普通权限，安装时自动授予 -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!--
+        串流到外部播放器用的前台服务：外部播放器读的是本机回环 HTTP，代理必须活过本页面。
+        dataSync 这个类型是 API 34 起强制要求的（targetSdk 34），低版本忽略该属性。
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- 传输进度通知（API 33 起是运行时权限，首次发起传输时申请） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!--
+        相册备份要读手机里的照片和视频：API 33 起分成两类媒体权限，更早的版本还是老的
+        READ_EXTERNAL_STORAGE（用 maxSdkVersion 关掉，免得在新系统上多问一个没用的授权框）。
+        VISUAL_USER_SELECTED 对应 Android 14 的「只选部分照片」，不声明就只能全grant或全不给。
+    -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <!-- 固件下载走 USB OTG  host，无 OTG 的手机只是用不了这一个功能 -->
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
@@ -10,6 +33,7 @@
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
@@ -36,6 +60,112 @@
             android:exported="false"
             android:label="@string/title_dns"
             android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".LanScanActivity"
+            android:exported="false"
+            android:label="@string/title_lan"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".RdpActivity"
+            android:exported="false"
+            android:label="@string/title_rdp"
+            android:screenOrientation="portrait" />
+
+        <!--
+            内置远程桌面会话。刻意不锁方向（远端是桌面，横屏更有用），并声明 configChanges：
+            原生会话线程与帧缓冲活在进程里，Activity 一重建就会出现「画面还在、会话已断」的错乱。
+        -->
+        <activity
+            android:name=".RdpSessionActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:exported="false"
+            android:label="@string/rdp_session_title" />
+
+        <!--
+            共享浏览（Compose 实现）。从扫描页进来时标题会被代码改成主机名，从主页进来就用这个通用标题。
+        -->
+        <activity
+            android:name=".SmbBrowseActivity"
+            android:exported="false"
+            android:label="@string/title_smb"
+            android:screenOrientation="portrait" />
+
+        <!--
+            共享文件预览。刻意不锁方向并声明 configChanges：视频横屏看才有意义，而默认行为下
+            旋转会重建 Activity——播放器与本机回环服务会被拆掉重来，画面看起来就是「转一下就重播」。
+        -->
+        <activity
+            android:name=".SmbPreviewActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density"
+            android:exported="false"
+            android:label="@string/title_smb" />
+
+        <!--
+            分享到工具箱：接住相册/文件管理器发来的文件，转到共享浏览页挑目标目录再上传。
+            exported=true 是必须的（别的 App 要能把它当分享目标调起来），但并不因此暴露任何数据：
+            它只读 intent 里的 URI，立刻转交内部页面，自己不建连接也不落盘。
+        -->
+        <activity
+            android:name=".SmbSendActivity"
+            android:exported="true"
+            android:label="@string/smb_send_title"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- 已下载与最近打开：数据与「连的是哪台机器」无关，所以是独立入口 -->
+        <activity
+            android:name=".SmbDownloadsActivity"
+            android:exported="false"
+            android:label="@string/smb_downloads_title"
+            android:screenOrientation="portrait" />
+
+        <!-- 压缩包在线浏览/解压：只读包尾的目录表，条目表活在这一页里，退出即释放句柄 -->
+        <activity
+            android:name=".SmbZipActivity"
+            android:exported="false"
+            android:label="@string/smb_zip_title"
+            android:parentActivityName=".SmbBrowseActivity"
+            android:screenOrientation="portrait" />
+
+        <!--
+            串流到外部播放器：本机回环 HTTP 代理活在服务里，页面关掉之后外部播放器还能继续播。
+            exported=false——只有本应用能起它；通知里的「停止」也走同一个服务。
+        -->
+        <service
+            android:name=".SmbStreamService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!--
+            传输队列的前台承载：页面退出后任务要继续跑，所以必须有它。任务本身在 TransferHub 里，
+            这个服务只负责让进程活着并把进度摆到通知栏。
+        -->
+        <service
+            android:name=".SmbTransferService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!--
+            下载与导出的文件通过 content URI 交给别的 App（工程不引 AndroidX，所以自建 provider）。
+            authorities 必须与 LocalFileProvider.authority() 的 <包名>.files 保持一致。
+        -->
+        <provider
+            android:name=".LocalFileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true" />
 
         <!-- 插上 CH340 等转串口芯片时系统会询问是否用工具箱打开 -->
         <activity

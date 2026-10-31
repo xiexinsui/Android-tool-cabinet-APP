@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 单行文本输入：新建文件夹、重命名、过滤关键字共用一份 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingLeft="20dp"
+    android:paddingTop="8dp"
+    android:paddingRight="20dp"
+    android:paddingBottom="4dp">
+
+    <EditText
+        android:id="@+id/et_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/smb_text_hint"
+        android:importantForAutofill="no"
+        android:inputType="textNoSuggestions"
+        android:maxLines="1" />
+</LinearLayout>

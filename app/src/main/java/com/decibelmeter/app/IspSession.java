@@ -5,9 +5,11 @@ import com.hoho.android.usbserial.driver.UsbSerialPort;
 /**
  * 一次串口下载会话的全部流程编排（界面上的每个动作最终都落到这里）。
  *
- * 关键点：芯片进入 Bootloader 后的状态是「一次性」的——解除写保护、执行擦除之后，
- * Bootloader 内部的地址指针和状态会被重置，所以流程里多处要「重新进入 Bootloader」，
- * 这不是多余动作，而是协议要求。connected 标志用来避免重复复位。
+ * 关键点：AN3155 的全局擦除收到 ACK 就表示 Bootloader 已回到命令等待状态，
+ * 擦除本身不会复位芯片，所以擦除后直接写即可，不必再复位或重进 Bootloader
+ * （手动模式复位还有掉出 Bootloader、从刚擦空的 Flash 跑飞的风险）。
+ * 只有解写保护 (0x73) 会改选项字节并让芯片自己复位，之后才必须重新同步。
+ * connected 标志用来避免重复复位。
  */
 final class IspSession {
 
@@ -227,7 +229,7 @@ final class IspSession {
 
     /**
      * 完整下载流程：连接 -> 校验地址 -> （必要时解写保护）-> 全片擦除 ->
-     * 重新连接 -> 分页写入 -> （可选）跳转运行。
+     * 分页写入 -> （可选）跳转运行。擦除后不再重进 Bootloader。
      */
     boolean download(boolean verifyEachPage, boolean runAfterDownload) {
         if (!ensureBootloader()) {
@@ -265,13 +267,7 @@ final class IspSession {
             }
         }
 
-        // 擦除后 Bootloader 状态复位，写入前必须重新握手
-        bootloaderConnected = false;
-        if (!ensureBootloader()) {
-            log.log(IspLog.LEVEL_ERROR, "重新进入 Bootloader 失败");
-            return false;
-        }
-
+        // 擦除 ACK 后 Bootloader 仍在命令状态，直接接着写；复位重进反而可能从空 Flash 跑飞
         long writeStart = System.currentTimeMillis();
         if (!programmer.writeImage(firmware, verifyEachPage)) {
             return false;

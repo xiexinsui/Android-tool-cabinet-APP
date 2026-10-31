@@ -1,0 +1,24 @@
+[package]
+name = "ironrdp-rdpsnd-native"
+version = "0.7.0"
+edition = "2024"
+rust-version = "1.89"
+description = "Native RDPSND backend（IronRDP 原版 0.7.0，仅关掉默认的 opus 特性）"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Devolutions/IronRDP"
+
+# 与上游唯一的差别：上游 default = ["opus"]，会拉 libopus_sys（CMake + libopus 源码），
+# 安卓交叉编译要装 CMake 且每条 ABI 多编一个 C 库。这里只需要 PCM 播放，默认特性留空。
+# 源码取自 crates.io 的 ironrdp-rdpsnd-native 0.7.0（src/ 三个文件逐字节相同）。
+[features]
+default = []
+
+[lib]
+name = "ironrdp_rdpsnd_native"
+path = "src/lib.rs"
+
+[dependencies]
+cpal = "0.17"
+ironrdp-error = { version = "0.2", features = ["std"] }
+ironrdp-rdpsnd = "0.9"
+tracing = { version = "0.1", features = ["log"] }

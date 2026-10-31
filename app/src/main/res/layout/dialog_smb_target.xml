@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 手输共享地址：主机名必填，共享名可以留空（先列共享），也支持 \\NAS\照片 这种贴过来的写法 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingLeft="20dp"
+    android:paddingTop="8dp"
+    android:paddingRight="20dp"
+    android:paddingBottom="4dp">
+
+    <EditText
+        android:id="@+id/et_host"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/smb_target_host_hint"
+        android:importantForAutofill="no"
+        android:inputType="textUri"
+        android:maxLines="1" />
+
+    <EditText
+        android:id="@+id/et_share"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/smb_target_share_hint"
+        android:importantForAutofill="no"
+        android:inputType="textNoSuggestions"
+        android:maxLines="1" />
+</LinearLayout>

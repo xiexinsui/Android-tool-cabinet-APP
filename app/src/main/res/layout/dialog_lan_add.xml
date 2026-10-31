@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 手动添加设备：几路发现都扫不到的设备（例如只在内网做端口转发、或开了 AP 隔离）时用它兜底 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingLeft="20dp"
+    android:paddingTop="8dp"
+    android:paddingRight="20dp"
+    android:paddingBottom="4dp">
+
+    <EditText
+        android:id="@+id/et_host"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/lan_add_host_hint"
+        android:importantForAutofill="no"
+        android:inputType="textUri"
+        android:maxLines="1" />
+
+    <EditText
+        android:id="@+id/et_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/lan_add_name_hint"
+        android:importantForAutofill="no"
+        android:inputType="textNoSuggestions"
+        android:maxLines="1" />
+
+    <EditText
+        android:id="@+id/et_mac"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/lan_add_mac_hint"
+        android:importantForAutofill="no"
+        android:inputType="textNoSuggestions"
+        android:maxLines="1" />
+</LinearLayout>

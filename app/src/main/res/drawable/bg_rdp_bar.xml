@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 浮在远端画面上的控件条底色：半透明深色 + 圆角，既不挡画面又能看清白字 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#B3000000" />
+    <corners android:radius="22dp" />
+</shape>

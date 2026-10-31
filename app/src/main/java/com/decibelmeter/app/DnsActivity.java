@@ -3,6 +3,7 @@ package com.decibelmeter.app;
 import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -233,6 +234,7 @@ public class DnsActivity extends BaseActivity {
 
     private void showDomainMenu(String domain) {
         String[] items = {
+                getString(R.string.dns_action_rdp),
                 getString(R.string.dns_copy_domain),
                 getString(R.string.dns_reparse),
                 getString(R.string.dns_delete),
@@ -241,14 +243,30 @@ public class DnsActivity extends BaseActivity {
                 .setTitle(domain)
                 .setItems(items, (dialog, which) -> {
                     if (which == 0) {
-                        copyText(domain);
+                        openRdp(domain);
                     } else if (which == 1) {
+                        copyText(domain);
+                    } else if (which == 2) {
                         resolveAsync(domain);
                     } else {
                         confirmDelete(domain);
                     }
                 })
                 .show();
+    }
+
+    /**
+     * 用这个域名开远程桌面。
+     *
+     * 不在这里先把 IP 解出来再传过去：会话页自己会解析并把结果写进状态行，而且换个网络
+     * 解析结果会变——连接簿里存域名比存某一次解析出来的 IP 更合适。
+     */
+    private void openRdp(String domain) {
+        Intent intent = new Intent(this, RdpSessionActivity.class);
+        intent.putExtra(RdpSessionActivity.EXTRA_HOST, domain);
+        intent.putExtra(RdpSessionActivity.EXTRA_PORT, LanHost.PORT_RDP);
+        intent.putExtra(RdpSessionActivity.EXTRA_NAME, domain);
+        startActivity(intent);
     }
 
     private void confirmDelete(String domain) {

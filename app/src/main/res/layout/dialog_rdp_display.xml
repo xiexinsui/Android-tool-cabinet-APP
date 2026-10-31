@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  显示设置：分辨率 + 画面缩放 + 鼠标灵敏度。
+  分辨率那一组没有写死选项，由 RdpSettings.PRESETS 在代码里展开（第一项要用手机的实际
+  分辨率算，写进 XML 就成了死值）。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingLeft="16dp"
+    android:paddingTop="4dp"
+    android:paddingRight="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="6dp"
+        android:text="@string/rdp_display_size"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    <CheckBox
+        android:id="@+id/cb_rdp_adaptive"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/rdp_adaptive_size" />
+
+    <RadioGroup
+        android:id="@+id/rg_rdp_size"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="10dp"
+        android:text="@string/rdp_display_scale"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    <RadioGroup
+        android:id="@+id/rg_rdp_scale"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <RadioButton
+            android:id="@+id/rb_rdp_fit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/rdp_scale_fit" />
+
+        <RadioButton
+            android:id="@+id/rb_rdp_stretch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/rdp_scale_stretch" />
+    </RadioGroup>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="10dp"
+        android:text="@string/rdp_display_quality"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    <RadioGroup
+        android:id="@+id/rg_rdp_quality"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <RadioButton
+            android:id="@+id/rb_rdp_quality_save"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/rdp_quality_save" />
+
+        <RadioButton
+            android:id="@+id/rb_rdp_quality_balanced"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/rdp_quality_balanced" />
+
+        <RadioButton
+            android:id="@+id/rb_rdp_quality_sharp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/rdp_quality_sharp" />
+    </RadioGroup>
+
+    <TextView
+        android:id="@+id/tv_rdp_sensitivity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="10dp"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    <SeekBar
+        android:id="@+id/sb_rdp_sensitivity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+</LinearLayout>
