@@ -516,12 +516,10 @@
     <string name="rdp_keys_cad">Ctrl + Alt + Del</string>
     <string name="rdp_display_title">Display and input</string>
     <string name="rdp_display_size">Desktop resolution</string>
-    <string name="rdp_adaptive_size">Match the current phone resolution (1:1 pixels, reconnects on rotate)</string>
     <string name="rdp_display_scale">Picture scaling</string>
     <string name="rdp_scale_fit">Fit with letterbox</string>
     <string name="rdp_scale_stretch">Fill the screen</string>
     <string name="rdp_sensitivity_format">Pointer speed %1$d%%</string>
-    <string name="rdp_size_match_phone_format">Match this phone (%1$d×%2$d)</string>
     <string name="rdp_apply">Apply</string>
     <string name="rdp_input_ime_hint">Remote keyboard input</string>
     <string name="rdp_probe_menu">Check security layer</string>

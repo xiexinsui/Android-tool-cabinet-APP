@@ -29,6 +29,18 @@ if (buildingApk) {
 def appVersionCode = versionProps.getProperty('versionCode', '1') as int
 def appVersionName = versionProps.getProperty('versionName', '1.0')
 
+// ---- release 签名 ----
+// 密钥与口令只放在本机根目录 keystore/signing.properties（整目录已在 .gitignore 里），
+// 所以这里不出现任何明文凭据，也不走环境变量：换机器要先按 README 的说明把这个目录恢复回来。
+// 文件不存在时仍然允许构建——产物是未签名的 release 包，装不上去，但 CI 或临时机器不会被
+// 一句「找不到密钥」直接卡死；缺密钥这件事由「安装到手机」一节里的 apksigner 校验兜住。
+def keystorePropsFile = rootProject.file('keystore/signing.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.isFile()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def releaseKeystoreConfigured = keystoreProps.getProperty('storeFile') != null
+
 android {
     namespace 'com.decibelmeter.app'
     compileSdk 37
@@ -56,9 +68,23 @@ android {
         coreLibraryDesugaringEnabled true
     }
 
+    signingConfigs {
+        if (releaseKeystoreConfigured) {
+            release {
+                storeFile = rootProject.file(keystoreProps.getProperty('storeFile'))
+                storePassword = keystoreProps.getProperty('storePassword')
+                keyAlias = keystoreProps.getProperty('keyAlias')
+                keyPassword = keystoreProps.getProperty('keyPassword')
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
+            if (releaseKeystoreConfigured) {
+                signingConfig = signingConfigs.release
+            }
         }
     }
 }

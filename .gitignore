@@ -34,6 +34,9 @@ local.properties
 *.log
 
 # ===== 签名与凭据：任何情况下都不入库 =====
+# release 密钥与它的口令文件整目录排除（signing.properties 里是明文口令，
+# 而 *.properties 本身不在排除范围，所以按目录挡，别指望 *.jks 那几条）
+/keystore/
 *.jks
 *.keystore
 *.p12

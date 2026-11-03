@@ -2,6 +2,33 @@
 
 每次推送在顶部追加一条，分类用「新增 / 修改 / 修复 / 移除」。提交信息主题与本文件对应条目保持一致。
 
+## v2.0.72 — 2026-11-03
+
+第一次产出**可安装的 release 包**。之前的 release 配置只有 `minifyEnabled false`，没有任何签名，`assembleRelease` 出来的是未签名 APK——能生成、装不上去，而这一点此前没人踩过，因为一直在装 debug 包。
+
+### 新增
+
+- **release 签名链路**：`app/build.gradle` 读根目录 `keystore/signing.properties`（`storeFile` / `keyAlias` / `storePassword` / `keyPassword`），有则给 release 挂 `signingConfig`，**没有也照常构建**（产物未签名）。这样换机器或 CI 不会被"找不到密钥"直接卡死，而缺没缺由 `apksigner verify` 一眼可见——比在脚本里硬编口令或塞环境变量都干净
+- **发布证书指纹写进 README**（SHA-256 `d978761677a1b9c28ee02463ded88d3d17c02fe64e0a9ed2314ed68c4c7f605f`）：这是公开信息，用来核对拿到的 APK 是不是同一把钥匙签的，不是密钥本身
+
+### 修复
+
+- **`assembleRelease` 被 lint 拦死**：release 变体默认跑 `lintVitalRelease`，撞上两条 `ExtraTranslation`——`values-en/strings.xml` 有 `rdp_adaptive_size`、`rdp_size_match_phone_format` 的译文，而默认 `values/strings.xml` 里没有对应键。两句都是 1.x 自绘会话页的死文案（全仓零引用），所以**删掉**，而不是给一个已经不在的界面补默认文案。debug 构建不跑这条检查，这类问题只在发版时冒出来，正是「已知问题」第 14 条说的东西里唯一真会挡发版的那一小撮
+- **`.gitignore` 挡不住口令文件**：`keystore/signing.properties` 存的是明文口令，而规则里只有 `*.jks`、`*.keystore`、`passwords*`、`secrets*`——`signing.properties` 一个都不匹配，`git add -A` 会把它连同口令一起送进仓库。改成**整个 `/keystore/` 目录排除**（按目录挡，不依赖文件名形状）
+
+### 修改
+
+- README 新增「发布版本（release）」一节：构建命令、签名配置的两种走向、首次建密钥的 `keytool` 命令、**这把钥匙丢了以后同一 applicationId 就无法覆盖升级**（只能卸载重装）、以及 release 与 debug 签名不同 → 手机上要先卸载 debug 否则 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`
+- 「入库范围」表补上 `/keystore/` 一行，并把"密码只走环境变量"改成"走环境变量或这个被忽略的目录"——实际用的是后者
+
+### 验证
+
+- `./gradlew assembleRelease` → BUILD SUCCESSFUL，产物 `app/build/outputs/apk/release/工具箱-2.0.72.apk`，33,617,380 字节（比 debug 的 40,109,793 小约 6.5 MB）
+- `apksigner verify --print-certs` → `Verifies`；**v2 方案 true**、v1 false（minSdk 24 起都认 v2，不需要 JAR 签名）；`certificate DN: CN=ToolKit Release, OU=xiexinsui, O=xiexinsui, C=CN`——确认是新密钥而不是 `~/.android/debug.keystore` 那把
+- 包内 `output-metadata.json`：`applicationId=com.decibelmeter.app`、`versionCode=115`、`versionName=2.0.72`，与本条日志一致
+- **版本号自增的坑**：判定在配置阶段，构建失败也照加。第一次失败把 2.0.71 吃成了 2.0.72 却没产出 APK，本次把 `version.properties` 手工还原成 114/2.0.71 再重跑，成功的那次才落在 115/2.0.72——日志号与实际装得上去的包对得上
+- **未做**：release 包没有装机验证。它是新签名，覆盖装到现在带着 debug 签名的手机上必然失败，需要先卸载现有版本；这一步会清掉手机上的连接簿与凭据（都存本机 SharedPreferences），所以留给你自己决定什么时候做
+
 ## 文档修订 — 2026-11-03（不产出 APK，`version.properties` 保持 2.0.71）
 
 把 README 逐节拉到代码上核对了一遍：改掉 10 余处与实现不符的表述、填上一整节空白的致谢、清掉 1.x 曾经专门清理过的真实地址，并顺手让 `.gitignore` 真正对上 README 承诺的入库范围。**代码逻辑一行没改**——核文档时查出来的 14 条真问题全部如实写进 README 新增的「已知问题」小节，等下一轮按清单收尾。

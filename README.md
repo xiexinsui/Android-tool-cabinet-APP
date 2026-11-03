@@ -357,7 +357,39 @@ export JAVA_HOME="<AS>/jbr"
 
 产物：`app/build/outputs/apk/debug/工具箱-<版本>.apk`（可直接安装，minSdk 24 / Android 7.0+）。版本号存在根目录 `version.properties`，每次执行 `assemble*` / `install*` / `bundle*` / `package*` 前自动把 `versionCode` 与 `versionName` 末位 +1（判定在 `app/build.gradle:16-28`，是**配置阶段**跑的），APK 文件名随之带版本；`lint` 之类不产包的任务不会触发自增。所以**只想验文档时别跑构建**——它会改掉 `version.properties`，让工作树变脏、日志版本号与已发布条目对不上；真要先跑，就把自增单独提一条。
 
-## 安装到手机
+### 发布版本（release）
+
+```bash
+./gradlew assembleRelease
+# 产物：app/build/outputs/apk/release/工具箱-<版本>.apk
+```
+
+**签名**：`app/build.gradle` 读根目录 `keystore/signing.properties`（`storeFile` / `keyAlias` / `storePassword` / `keyPassword` 四个键），存在就给 release 挂上 `signingConfig`，**不存在也允许构建**——产物是未签名包，装不上去，但换机器或 CI 不会被一句"找不到密钥"卡死；缺没缺由下面的 `apksigner verify` 直接看出来。**口令绝不写进任何入库文件**：整个 `keystore/` 目录已在 `.gitignore` 里（`signing.properties` 是 `*.properties`，不在原有排除范围内，所以按目录挡而不是指望 `*.jks` 那条）。
+
+第一次建密钥（只需一次；`-validity 10950` = 30 年）：
+
+```bash
+keytool -genkeypair -keystore keystore/release.jks -storetype PKCS12 \
+  -alias toolkit-release -keyalg RSA -keysize 2048 -validity 10950 \
+  -dname "CN=ToolKit Release, OU=<你的名>, O=<你的名>, C=CN"
+```
+
+**这把钥匙必须异地备份**：Android 按签名认应用，密钥丢了以后就不能给同一 `applicationId` 覆盖升级，只能让用户卸载重装。本工程的发布证书指纹（公开信息，校验 APK 出身用的，不是密钥）：
+
+```
+SHA-256: d978761677a1b9c28ee02463ded88d3d17c02fe64e0a9ed2314ed68c4c7f605f
+SHA-1:   94dfd885dd86e53929f7a769a556dffb8273c0b3
+```
+
+已实测的校验方式（本机 build-tools 37.0.0）：`apksigner verify --print-certs <apk>` → `Verifies`、**v2 方案 true**、`certificate DN: CN=ToolKit Release…`。v1（JAR 签名）是 false：minSdk 24 起步的设备都认 v2，不需要再开 v1。
+
+**release 包与 debug 包签名不同**，所以手机上装着 debug 版时**必须先卸载**再装 release，否则报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`（签名不一致）。这也是每次换签名的代价，别把调试包和发布包来回覆盖装。
+
+**构建会自增版本号**：`assembleRelease` 也在触发自增的任务名里，一次构建 = 一个新版本号。构建失败也一样自增（判定发生在配置阶段，与成不成功无关）——本次第一版 release 就因为 lint 失败白吃了一格，办法是构建前把 `version.properties` 改回上一个值再跑。
+
+**lint 会挡住 release**：release 变体默认跑 `lintVitalRelease`，遇 fatal 级问题直接失败（debug 不跑，所以这种问题只在发版时暴露）。本次撞上的是一条 `ExtraTranslation`：`values-en` 里有 `rdp_adaptive_size`、`rdp_size_match_phone_format` 两条译文，默认 `values/strings.xml` 里没有对应键，而且全仓零引用——那是 1.x 自绘会话页遗留的死文案。处理方式是删掉这两条（而不是给一个已经不存在的界面补默认文案）。这也印证了「已知问题」里那条"89 个无引用字符串"：它们不影响功能，但会在发版时用 lint 的方式冒出来。
+
+### 安装到手机
 
 ```bash
 # 用 SDK 自带的新版 adb（Android 16 需 platform-tools 36+）
@@ -558,7 +590,7 @@ node tools/gen_icons.js
 11. **JPEG 解码跑在组合线程上**（低）——`SmbBrowseScreen.kt:749` 在 `produceState`（Main）里调 `SmbVideoThumbs.request()`，而它 `:53-61` 命中磁盘缓存时同步 `BitmapFactory.decodeFile`（`:127`）。挪到 `Dispatchers.IO` 或走现成的 `workers`
 12. **两处小的死路**：`SmbPdfThumbs.clear()`（`:55`）没有任何调用点，所以菜单里的「清空缓存」清不掉 PDF 缩略图那份进程内 `LruCache`（磁盘那份归 `DownloadStore`/`cacheDir` 管，能清掉）；`SmbVideoThumbs.peek()`（`:40`）与 `has()`（`:82`）也没有调用点
 13. **一句过时的注释**：`IspActivity.java:584` 写「本工程刻意不引入 AndroidX」——2.0 的 `freerdpcore` 与 Compose 都建立在 AndroidX 上，这话对本页还成立、对本工程已经不成立了，改注释就行
-14. **1.x 会话页遗留的字符串资源还没清**：`app/src/main/res/values/strings.xml` 的 710 个键里 **89 个没有任何引用**，绝大多数是 1.x 自绘会话页的词汇（`rdp_quality_*`、`rdp_detail_*`、`rdp_mode_*`、`rdp_scale_*`、`rdp_keys_cad` 等）；freerdpcore 自己那份 `strings.xml` 里另有 27 条无引用，9 个 locale 各缺 106 条译文。不影响功能，但会误导后来的读者以为还有这些开关
+14. **1.x 会话页遗留的字符串资源还没清**：`app/src/main/res/values/strings.xml` 的 710 个键里 **89 个没有任何引用**，绝大多数是 1.x 自绘会话页的词汇（`rdp_quality_*`、`rdp_detail_*`、`rdp_mode_*`、`rdp_scale_*`、`rdp_keys_cad` 等）；freerdpcore 自己那份 `strings.xml` 里另有 27 条无引用，9 个 locale 各缺 106 条译文。不影响功能，但会误导后来的读者以为还有这些开关。**v2.0.72 已删其中的两条**：`values-en` 的 `rdp_adaptive_size` 与 `rdp_size_match_phone_format`——它们是唯一会**挡住发版**的一批（默认 locale 没有对应键 → `lintVitalRelease` 报 `ExtraTranslation` → `assembleRelease` 失败），其余的因为默认键还在、lint 只当冗余不报错。剩下的清掉才算真解决
 
 ## 仓库与提交规范
 
@@ -574,7 +606,7 @@ node tools/gen_icons.js
 | Native 依赖 | 排除：`/third_party/freerdp/`、`/third_party/openssl-*/`（**带结尾斜杠，只匹配那个源码目录**；源码包 `openssl-3.5.9.tar.gz` 是靠 `/third_party/*.tar.gz` 排除的，同目录的 `.sha256` 因为不是目录、也不匹配 `*.tar.gz`，所以**会入库**——那只是一行校验值，对复现有用）、`/third_party/build/`、`/third_party/prebuilt/`、`/third_party/*.tar.gz`、`/third_party/ExtUtils-MakeMaker-7.70/`（CPAN 原始包，内容已整理进 perl-lib）——按 `third_party/README.md` 重编即可 |
 | Native 依赖（**要入库**） | `/third_party/perl-lib/`：构建期补齐的那批纯 Perl 模块，`build-android.sh:47` 的 `PERL5LIB` 指的就是它、`:49` 还会检查 `perl-lib/Pod` 在不在，缺了脚本直接退出。所以它是"构建必需"，不是本机缓存 |
 | 1.x 遗留产物 | 排除：`/build-shim/`（自写 RDP shim 时代的 `librdpcore.so` + `CMakeCache.txt`/`build.ninja`，约 16 MB；源码线已删，产物只留本机） |
-| 签名与凭据 | 一律排除：`*.jks`、`*.keystore`、`*.p12`、`*.pfx`、`*.pem`、`.env`、`secrets*`、`*token*`、`*.rmi`、`passwords*`；密码/令牌只允许通过环境变量临时传入，不写入任何入库文件 |
+| 签名与凭据 | 一律排除：**整个 `/keystore/` 目录**（`release.jks` + `signing.properties`，后者是明文口令、且 `*.properties` 本身不在排除范围，所以按目录挡）、`*.jks`、`*.keystore`、`*.p12`、`*.pfx`、`*.pem`、`.env`、`secrets*`、`*token*`、`*.rmi`、`passwords*`；密码/令牌只允许通过环境变量或这个被忽略的目录临时传入，不写入任何入库文件 |
 | 构建必需 | 保留：`gradle/wrapper/gradle-wrapper.jar`、`gradlew`、`gradlew.bat`、`gradle/gradle-daemon-jvm.properties`、`.gitattributes`、`version.properties`、`settings.gradle` 里的公共镜像地址 |
 
 **入库前必看一眼的东西**（历史教训）：真实内网地址、设备真实 MAC、个人机器名、自己的 DDNS 域名与公网 IPv6 前缀都属于隐私——文档里一律用占位写法：示例地址 `192.168.1.100` / `192.168.1.10`、示例机器名 `PC-HOME` / `PC-OFFICE` / `NAS-HOME`、MAC 掩码 `C8:BF:4C:XX:XX:XX`、DDNS 域名写成「自己的 dynv6 域名」。这套约定由 1.x 提交 `9b48e84` 定下，2.0 的 RDP 验证记录曾把真实地址与域名原值写回去，本次已清掉。**写「清理说明」时也别把原值抄一遍**——记录清掉了什么，不需要把被清掉的东西再列出来；本次第一稿就踩了这个，脱敏条目自己带着原值，重写提交时才拦住。
