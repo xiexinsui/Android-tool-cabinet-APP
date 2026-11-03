@@ -977,8 +977,8 @@ public class LanScanActivity extends BaseActivity {
         List<Integer> actions = new ArrayList<>();
         labels.add(getString(R.string.lan_action_smb));
         actions.add(ACTION_SMB);
-        // 本进程直接连的那条排前面：它不依赖手机里装没装别的客户端
-        if (host.mayOfferRdp() && RdpNative.isAvailable()) {
+        // 本进程直接连的那条排前面：FreeRDP 客户端始终随应用内置
+        if (host.mayOfferRdp()) {
             labels.add(getString(R.string.lan_action_builtin_rdp));
             actions.add(ACTION_BUILTIN_RDP);
         }

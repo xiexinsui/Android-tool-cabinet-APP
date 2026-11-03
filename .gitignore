@@ -45,8 +45,18 @@ secrets*
 *.rmi
 passwords*
 
-# 内置远程桌面的原生层：cargo 中间产物与编出来的 .so（都是构建产物，按需重编）
-rdpcore/target/
-app/src/main/jniLibs/**/*.so
+# 内置远程桌面的原生层：FreeRDP/OpenSSL 源码与交叉编译产物（按需重编，见 third_party/README.md）
+/third_party/freerdp/
+/third_party/openssl-*/
+/third_party/build/
+/third_party/prebuilt/
+/third_party/*.tar.gz
+# CPAN 原始包：里面的模块已整理进 third_party/perl-lib（构建脚本按 perl-lib 检查，那份才入库）
+/third_party/ExtUtils-MakeMaker-7.70/
+# AGP 的 native 构建中间目录（已在 build/ 之外单独落一份）
+/app/.cxx/
+# 1.x 时代自写 RDP shim 的编译产物：源码线（RdpNative / rdpcore / librdpcore.so）已删，产物留在本机备查
+/build-shim/
 
 # 说明：gradle/wrapper/gradle-wrapper.jar 属于构建必需文件，不在排除范围内。
+

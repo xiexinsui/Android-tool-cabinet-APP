@@ -24,5 +24,6 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "DecibelMeter"
+rootProject.name = "ToolKit"
 include ':app'
+include ':freerdpcore'

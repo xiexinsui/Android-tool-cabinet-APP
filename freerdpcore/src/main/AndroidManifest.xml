@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  来自 FreeRDP 3.28.0 的 client/Android/Studio/freeRDPCore（MPL-2.0），裁掉了工具箱不用的
+  入口（主页/连接簿/快捷方式/关于/帮助）与数据库，只留会话界面本身。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <application>
+        <activity
+            android:name=".presentation.SessionActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Main"
+            android:configChanges="orientation|keyboard|keyboardHidden|screenSize|smallestScreenSize|density|screenLayout|navigation"
+            android:windowSoftInputMode="adjustResize"
+            android:taskAffinity="com.decibelmeter.app.session"
+            android:documentLaunchMode="always"
+            android:autoRemoveFromRecents="true" />
+
+        <provider
+            android:name=".utils.ClipboardImageProvider"
+            android:authorities="com.freerdp.freerdpcore.clipboard"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+
+</manifest>

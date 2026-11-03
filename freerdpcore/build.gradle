@@ -1,0 +1,47 @@
+// FreeRDP 官方 Android 客户端核心（来自 FreeRDP 3.28.0 的
+// client/Android/Studio/freeRDPCore，MPL-2.0）。
+//
+// 这里保留的是「会话界面 + 控制逻辑 + JNI 客户端」：SessionActivity/SessionView/
+// SessionInputManager/TouchPointerView 负责触摸、鼠标、滚轮、缩放与键盘，LibFreeRDP
+// 把设置拼成 FreeRDP 自己的 argv 交给原生端解析。原模块里基于 Room + SQLCipher 的
+// 连接簿与主页（HomeActivity/BookmarkActivity/…）已删除——连接簿仍用工具箱自己的。
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    namespace 'com.freerdp.freerdpcore'
+    compileSdk 37
+    ndkVersion '29.0.13113456'
+
+    defaultConfig {
+        minSdk 24
+        // 与 third_party/build-android.sh 里编静态库用的两个 ABI 一致
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
+        externalNativeBuild { cmake { cFlags '-O2' } }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.31.5'
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.preference:preference:1.2.1'
+    implementation 'androidx.recyclerview:recyclerview:1.4.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.10.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata:2.10.0'
+}

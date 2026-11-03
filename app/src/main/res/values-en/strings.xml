@@ -426,6 +426,7 @@
     <string name="rdp_rate_format">%1$d fps · about %2$s/s (uncompressed pixels)</string>
     <string name="rdp_detail_net">Network: %1$s</string>
     <string name="rdp_detail_audio">Sound: %1$s · %2$d audio packets</string>
+    <string name="rdp_detail_audio_unknown">Sound: %1$s</string>
     <string name="rdp_audio_on">on (PCM 44.1 kHz; if the PC is silent, check its audio output device and mute state)</string>
     <string name="rdp_audio_off">off (this device or OS version cannot do RDPSND)</string>
     <string name="rdp_net_format">about %1$s/s received</string>

@@ -427,6 +427,7 @@
     <string name="rdp_rate_format">%1$d 帧/秒 · 约 %2$s/秒（按未压缩像素算）</string>
     <string name="rdp_detail_net">网络：%1$s</string>
     <string name="rdp_detail_audio">声音：%1$s · 已收 %2$d 个音频包</string>
+    <string name="rdp_detail_audio_unknown">声音：%1$s</string>
     <string name="rdp_audio_on">已开（PCM 44.1kHz，远端没声音时先看电脑那边有没有音频输出设备、是不是静音）</string>
     <string name="rdp_audio_off">未开（这台设备或系统版本不支持 RDPSND）</string>
     <string name="rdp_net_format">约 %1$s/秒（本应用接收）</string>
@@ -516,12 +517,11 @@
     <string name="rdp_keys_cad">Ctrl + Alt + Del</string>
     <string name="rdp_display_title">显示与操作</string>
     <string name="rdp_display_size">桌面分辨率</string>
-    <string name="rdp_adaptive_size">自适应手机当前分辨率（1:1 像素，旋转后自动重连）</string>
+    <string name="rdp_menu_display">显示设置</string>
     <string name="rdp_display_scale">画面缩放</string>
     <string name="rdp_scale_fit">等比适应（留黑边）</string>
     <string name="rdp_scale_stretch">拉满屏幕</string>
     <string name="rdp_sensitivity_format">鼠标灵敏度 %1$d%%</string>
-    <string name="rdp_size_match_phone_format">匹配本机（%1$d×%2$d）</string>
     <string name="rdp_apply">应用</string>
     <string name="rdp_input_ime_hint">远端键盘输入</string>
     <string name="rdp_probe_menu">检测安全层</string>

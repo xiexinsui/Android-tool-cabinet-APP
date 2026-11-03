@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
@@ -15,6 +17,8 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.freerdp.freerdpcore.presentation.SessionResolution;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +45,8 @@ public class RdpActivity extends BaseActivity {
     private static final int PROBE_TIMEOUT_MS = 6000;
     private static final int ACTION_BUILTIN = 7;
     private static final int ACTION_PROBE = 8;
+    /** 标题栏溢出菜单里的「显示设置」。 */
+    private static final int MENU_DISPLAY = 100;
 
     private final List<RdpConnection> items = new ArrayList<>();
     private final ConnectionAdapter adapter = new ConnectionAdapter();
@@ -89,15 +95,35 @@ public class RdpActivity extends BaseActivity {
         adapter.notifyDataSetChanged();
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        menu.add(Menu.NONE, MENU_DISPLAY, Menu.NONE, R.string.rdp_menu_display);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == MENU_DISPLAY) {
+            showDisplayDialog();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    /**
+     * 桌面分辨率设置——和会话页工具栏里那个「分辨率」是同一个对话框、同一份存储，
+     * 在哪儿改都一样：这里不在会话里，所以只保存，下一次连接按它要桌面。
+     */
+    private void showDisplayDialog() {
+        SessionResolution.showDialog(this, null);
+    }
+
     private void showMenu(final RdpConnection connection) {
         List<String> labels = new ArrayList<>();
         List<Integer> actions = new ArrayList<>();
-        if (RdpNative.isAvailable()) {
-            // 内置通道只有原生库加载成功才给：跑不了这个 ABI 的设备上看到「内置连接」却打不开，
-            // 比看不到这个选项更糟
-            labels.add(getString(R.string.rdp_action_builtin));
-            actions.add(ACTION_BUILTIN);
-        }
+        // FreeRDP 客户端随应用内置，两个 ABI 都有
+        labels.add(getString(R.string.rdp_action_builtin));
+        actions.add(ACTION_BUILTIN);
         labels.add(getString(R.string.rdp_action_test));
         actions.add(ACTION_TEST);
         labels.add(getString(R.string.rdp_probe_menu));

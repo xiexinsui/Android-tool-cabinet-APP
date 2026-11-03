@@ -1,6 +1,6 @@
 # 工具箱（Toolbox）
 
-安卓手机工具合集应用，当前包含「分贝仪」「域名解析」「固件下载」「局域网」（扫描 + 共享文件夹 + 远程桌面合成一个入口）四类工具，其他功能待添加。界面以系统控件（ListView / AlertDialog）实现为主，只有「共享文件夹」的浏览与预览两页用 Kotlin + Jetpack Compose（缩略图走 Coil，视频走 Media3，PDF 走系统 `PdfRenderer`），第三方依赖见「依赖」一节；内置远程桌面的协议层是 `IronRDP`（工程内的 Rust 原生层 `rdpcore/` 包一层手写 JNI），默认不参与构建。
+安卓手机工具合集应用，主页当前是五个可用入口：「分贝仪」「域名解析」「固件下载」「局域网」（扫描 + 共享文件夹 + 远程桌面合成一个入口）与「已下载 / 最近打开」，后面还挂着一条灰色「更多工具（待添加）」占位（`ToolBoxActivity.java` 的 `tools` 列表）。界面以系统控件（ListView / AlertDialog）实现为主，共享文件夹那条线上的**四页**用 Kotlin + Jetpack Compose——浏览、预览、压缩包解压、「已下载 / 最近打开」（缩略图走 Coil，视频走 Media3，PDF 走系统 `PdfRenderer`），第三方依赖见「依赖」一节；内置远程桌面直接使用 `FreeRDP` 官方 Android 客户端（`freerdpcore/` 模块承载会话界面与控制逻辑，原生层静态链入 OpenSSL），这个模块**总是参与构建**（`settings.gradle` 无条件 `include ':freerdpcore'`，没有开关）——缺 `third_party/` 的静态库时 `assembleDebug` 会直接在 CMake 阶段报错，而不是跳过远程桌面。
 
 ## 目录
 
@@ -25,7 +25,7 @@
 - **声音频段显示**：每帧 4096 点 FFT（Hann 窗）按 1/1 倍频程分成 9 段（63 Hz / 125 / 250 / 500 / 1k / 2k / 4k / 8k / 16k），柱状显示并带峰值记忆线；右上角文字提示当前**主频段**及其能量占比（如「主频段 500 Hz（占 32%）」）
   - 频段电平按能量占比换算：`频段 dBFS = 总 dBFS + 10·log10(该段能量 / 各段能量之和)`，保证各频段能量之和恰等于总声压，且与总分贝共用同一校准偏移
   - FFT 在采集线程执行，不占用主线程；频率分辨率 ≈ 11.7 Hz（48 kHz 采样 / 4096 点）
-- **麦克风输入设备可选**：内置麦克风、有线耳机、蓝牙 (SCO/BLE)、USB 麦克风等（`AudioRecord.setPreferredDevice`）
+- **麦克风输入设备可选**：内置麦克风、有线耳机、蓝牙 (SCO/BLE)、USB 麦克风等（`AudioRecord.setPreferredDevice`）；旁边有**「刷新设备」**按钮（`MainActivity.java:89-94`）——插上 USB 麦克风不必重进页面，重扫一遍设备列表并在提示里写明「发现 N 个输入设备」，如果正在测量还会立刻按新设备重启采集
 - 统计：最大 / 最小 / 能量平均 Leq
 - 校准偏移可调（dBFS + 偏移 = 显示 dB，默认 90）
 - 采集优先使用 `UNPROCESSED` 音源（绕过 AGC 自动增益，更接近真实声压），不支持时自动回退 `MIC`
@@ -37,7 +37,7 @@
 
 - 输入域名后同时查询 **A 记录（IPv4）** 与 **AAAA 记录（IPv6）** 并并列显示，用于核对 dynv6 这类动态域名的当前 IP
 - 顶部输入框是常留空位：输入域名后回车或点「解析」即加入列表（自动小写、去 `http(s)://` 前缀、去路径与结尾点号）；列表为空时页面居中显示添加提示
-- **长按地址复制到剪贴板**；长按域名弹出菜单，可复制域名 / 重新解析 / 从列表删除（删除有二次确认）
+- **长按地址复制到剪贴板**；长按域名弹出四项菜单（`DnsActivity.showDomainMenu`）：**远程连接**（拿这个域名直接开内置远程桌面，端口 3389；故意不在这里先解 IP——交给会话前由启动器 `RdpSessionActivity` 逐个试连，并把「域名 → 实际可达 IP」显示在信息面板里，换网络后解析值还会变，存域名比存某一次解出来的 IP 合适）/ 复制域名 / 重新解析 / 从列表删除（删除有二次确认）
 - 进入页面自动查询全部域名，每条结果显示 IPv4 / IPv6 条数与查询时刻；标题栏**右上角刷新按钮**（不在溢出菜单里）重新解析列表内所有域名，长按单条域名也可只重解该条
 - 查询在单线程池执行，不阻塞界面；同一域名只允许一个请求在跑；无网络或域名不存在时该条显示失败原因
 - 域名列表持久化在 SharedPreferences（`dns/domains`），解析结果不持久化，每次进入重新查询
@@ -96,6 +96,7 @@
 - 排序稳定：手动 → 收藏 → 网关 → 有开放端口 → 仅名称；条目显示设备类型线索（SSDP/mDNS 报上来的型号与厂商优先，其次 NetBIOS 角色后缀 `<1C>` 域控 / `<1B|1D>` 主浏览器 / `<20>` 文件服务器，最后才是端口组合）。**猜不出来就不显示**，不做假确定的断言；条目还带首个成功端口的 TCP 握手耗时（如 `2 ms`），也可改按 IP / 名称 / 类型排序
 - 名称按优先级合并：用户备注 > NetBIOS > mDNS > SSDP friendlyName > 反向 DNS PTR；Windows 的「主机名: 用户@域名:」与 AirPlay 的「MAC@设备名」会剥成可读名字。名称查询只对已确认开放端口的主机发起，不给空闲地址付 PTR 的等待时间
 - **收藏与手动添加落盘**（`lan_devices`），跨扫描、跨重启保留；手动项接受 IP 或主机名，用于「只在内网做端口转发」「AP 隔离扫不到」这类设备。主机名在后台线程解析，解析失败会在状态行明确报「无法解析」，不再伪装成「端口全部关闭」
+- **条目菜单里的凭据与列表管理**：「设置登录账号」把那台机器的用户名/域/密码存进 `lan_credentials`（共享页、远程桌面连接簿、扫描页三处共用同一份 `CredentialStore`，不各存一份）；已经存过的条目多出一行「删除已存凭据」，清掉后下次进共享页会重新问；「从设备列表移除」只对收藏与手动添加的条目出现（扫出来的设备本来就会随下一轮变化，没必要"移除"），移掉的是记录、不是设备
 - **设备身份跟 MAC 走**：收藏记录 MAC 与 lastSeen，DHCP 换地址后按 MAC 把收藏和已存凭据迁到新 IP；同一个 IP 上的 MAC 变了会先确认再用旧凭据。当前轮没出现的收藏显示「上次在线 X」；基线建立后新出现的设备标「新」，不会每轮都提示。没有 MAC 的设备退回 IP+名称；手动项可以自己填 MAC
 - **MAC 显示与来源**：条目固定显示 `MAC ...` 或 `MAC 未获取`。能拿到 MAC 的通道是 NetBIOS NBSTAT（这次修正了 DNS 头偏移、18 字节名称项，以及名称表之后统计区的 Unit ID）、mDNS TXT 的 `deviceid`/`mac`（AirPlay 常带 `deviceid`，实测音箱显示 `C8:BF:4C:XX:XX:XX`）、SSDP 描述 XML 的 MAC 字段，以及手动「设置 MAC」。Android 10+ 普通应用读不到 `/proc/net/arp`（真机 `run-as` 验证 `Permission denied`），所以默认关闭 NBNS 的 Windows 11 等设备仍显示未获取；应用不提供 root/Shizuku 读取通道，全量 MAC 只能手动设置或从路由器租约表导入
 - 单台操作：「重新探测端口」按当前预设复探（会丢掉上一轮结论，设备睡一觉回来端口不会还写着开放）；复探复用同一个 `LanHost`，端口全关也记成「已探测」，NetBIOS 角色不会因为单播没答而消失；「详扫 1–1024 端口」并行复扫 + 常见高位端口，约三秒
@@ -135,13 +136,13 @@
 - 状态行把两种「少掉了」**分开说**：`共 2 项 · 另有 2 项带隐藏属性，可在菜单里显示` 和 `共 1 项 · 未过滤时 4 项`。合成一句「未过滤时 N 项」会让人去清明明没填的搜索框（真机上看到过这个困惑）
 - 文件条目右侧有 **⋮ 按钮**：长按能做的事（在应用内预览 / 下载 / 另存为 / 复制路径 / 属性 / 重命名 / 删除）明面上也要有一个入口，手机上没人知道条目可以长按；列表下方同时给一行提示「点条目预览 · 长按或点右侧 ⋮ 可下载、重命名、删除」
 - 目录条目用一个和文件角标同尺寸的块画 ▸，左边缘才不会一格深一格浅；目录不取缩略图（列目录已经知道它是不是目录，多一次 SMB 读只为画个图标不值）
-- **缩略图**：图片由 Coil 经自定义的 `smb://` `Fetcher` 直接取字节（不绕 HTTP 那一跳），视频首帧由回环 HTTP + `MediaMetadataRetriever` 抽帧；两者都落到 `cacheDir/smb_preview`（默认上限 128 MB，按最后使用时间淘汰，菜单「预览缓存」可看占用与一键清空）。缩略图开关在菜单里，关掉即回到「只看名字翻共享」，省流量也省掉一大串 SMB 读
+- **缩略图**：图片由 Coil 经自定义的 `smb://` `Fetcher` 直接取字节（不绕 HTTP 那一跳），视频首帧由回环 HTTP + `MediaMetadataRetriever` 抽帧；两者都落到 `cacheDir/smb_preview`（上限固定 128 MB，按最后使用时间淘汰，菜单「预览缓存」可看占用与一键清空；`cache_mb` 这个键有 getter 也有 `setCacheLimitMb`，但界面上没有任何地方调它，所以**改不了**，要动只能改 `SmbSettings.java:177` 的那个默认值）。缩略图开关在菜单里，关掉即回到「只看名字翻共享」，省流量也省掉一大串 SMB 读
 - **应用内预览**：图片（双指缩放 / 拖动 / 双击 1×↔2.5×，左右翻页）、视频与音频（Media3 + 回环 HTTP，边取边播、可任意拖动）、PDF（系统 `PdfRenderer` 逐页渲染）、文本/日志/代码（只取前 512 KB，按 UTF-8 → GB18030 → Big5 严格试解并显示实际编码）。预览页把当前目录里所有能预览的项一次带走，所以能左右翻；只有停住的那一页会真的起播放器
 - 预览不了的出口：菜单里保留「用其他应用打开」与「下载到本机」，播不动的 wmv/avi、加了密的 PDF 都有地方去；超过预览上限的文件会写清有多大、上限是多少
 - **常用文件夹收藏**：在任意目录用菜单「收藏当前目录」一点加入，之后从「文件夹收藏…」或无地址入口的目标选择框里一点直达（目标框里收藏排在最近主机之前——它们是每天要开的那几个地方）。收藏可改名、删除；名字默认取路径末段，跳转时标题用最近主机记住的机器名而不是 IP
 - **传输是进程级队列，页面退出也照跑**：任务表在 `TransferHub`（进程单例），前台服务 `SmbTransferService` 只负责让进程活着并把进度摆到通知栏（带「全部取消」）。每条约有独立进度、取消与失败原因，默认 2 条并发（1 条会让「传一批照片」纯串行，8 条在一条千兆链路上互相抢 SMB credit，2 条刚好掩盖往返延迟）；进度每 100 ms 才推一次界面。连接的寿命也由它管：有活跃任务的机器被「钉」住（`SmbHub` 引用计数 +1），Activity 退出只减少自己那一份
 - **断点续传**：下载失败/取消后，任务上会出现「重试」，从**已经写入的字节**继续（`SmbClient.download(path, offset, …)` 用随机读句柄直接定位，不把前面的字节白读一遍）。续传起点只认任务自己记录的 `doneBytes`——MediaStore 的 pending 项查不到 SIZE（真机试出来的），提交前还会核对一次总字节数，对不上就报错而不是把坏文件当成功
-- **已下载与最近打开**（主页独立入口）：列公共 `下载/工具箱` 里的文件（Android 10 以下退回私有下载目录）与最近预览过的共享文件，点一条直接打开/继续看；**长按一条**给「分享 / 复制路径 / 删除」（删除连 MediaStore 记录一起清）。顶部还有一段**未完成**：见下条
+- **已下载与最近打开**（主页独立入口）：列公共 `下载/工具箱` 里的文件（Android 10 以下退回私有下载目录）与最近预览过的共享文件（`smb_recent_files`，上限 20 条），点一条直接打开/继续看；**长按一条**给「分享 / 复制路径 / 删除」（删除连 MediaStore 记录一起清）；标题栏菜单里有**「清空最近打开」**，只清「最近打开」那一段的预览记录，不动已经下载下来的文件。顶部还有一段**未完成**：见下条。**已知问题**：≤ Android 9 退回私有目录那条路上，「复制路径」和「删除」仍然按公共 `下载/工具箱` 拼路径（`SmbDownloadsActivity.kt:321,343-345`），而文件其实在 `Android/data/<包名>/files/Download`——复制出来的路径不存在、删除必然失败，见「注意事项」的已知问题清单
 - **传输不再阻断浏览**：可以边传边翻目录、看预览、继续往队列里加任务（原来一有传输点条目就被拦住）。写操作完成后会作废该目录的缓存，不会出现「改完名翻出去再回来还是旧名」
 - **下载进度能活过进程被杀**：每条下载按 1.5 秒节流把「主机 + 远端路径 + 落点句柄 + 已写字节」写进 `UnfinishedStore`。划掉应用、系统回收进程之后重开，「已下载」页顶部的「未完成」会列出下到一半的东西与字节数，点「继续」从断点接上（实测 2.6 GB 的电影下到 655 MB 时杀进程，重开后续到完成，字节数与远端一致），点「放弃」则把半截文件删掉。落点句柄之所以能重建：Android 10+ 那个 `IS_PENDING=1` 的 MediaStore 条目本来就还在，只是别的看不见
 - **传输速度**：jcifs 默认的 `rcv_buf_size`/`snd_buf_size` 只有 64 KB（`SmbConstants.DEFAULT_RCV_BUF_SIZE`），那同时就是 TCP 窗口——实测同一个 64 MB 文件下载 15.0 MB/s、上传 8.3 MB/s，而链路是 1200 Mbps。抬到 1 MB 后变成 **下载 49.6 MB/s、上传 17.4 MB/s**（Mi 10 Pro / Wi-Fi 6 RSSI -52 / Win11 虚机）。两条边界也一并试出来了：**显式给 `openInputStream`/`openOutputStream` 传 1 MB 会让服务端直接回 `STATUS_INVALID_PARAMETER`**（SMB2 下单次 READ 的大小取服务端协商值，WRITE 这个会话上限就是 64 KB），所以读写的每请求粒度保持库的默认，能调的只有套接字缓冲；上传要再快只能做并行写（把顺序流切块、多句柄按偏移写），暂未做。另外「允许 SMB1」时缓冲自动退回 64 KB——SMB1 且服务端没有 LARGE_READX 时 1 MB 的 READ 老设备会拒
@@ -169,73 +170,75 @@
 
 连接本身走内置客户端（见下一节），这里只剩「记住目标」和「带得走的连接信息」。
 
-- **连接簿**：名称 / 地址 / 端口，重复目标会被挡下；扫描页可以「存到远程桌面连接簿」。账号密码不在连接簿里，仍归 `CredentialStore` 按主机存，同一份密码不在两处落盘
+- **连接簿**：名称 / 地址 / 端口，重复目标会被挡下；扫描页可以「存到远程桌面连接簿」；标题栏菜单里的**显示设置**决定向服务端要的桌面尺寸（预设或「适配屏幕分辨率」= 按手机像素 1:1）；它和会话工具栏的「分辨率」是同一个对话框、同一份存储，会话里改还能当场生效。账号密码不在连接簿里，仍归 `CredentialStore` 按主机存，同一份密码不在两处落盘
 - **复制链接**：`freerdp://<用户>@<IP>:<端口>/connect`（域走 `?d=<域>`）只作为可粘贴的文本，交给别的设备或别的客户端用。**密码故意不进 URI**（会进对端进程命令行、也可能落日志）
 - **端口连通测试**：TCP 握手 + 往返耗时。结论写在状态行而不是只弹 toast——实测 MIUI 13 会把连续第二条 toast 直接吞掉
 - **安全层探测**（`RdpProbe`）：发一次 X.224 Connection Request 问服务端能用哪种安全层，问两遍（只请求 TLS、再请求 TLS|HYBRID|HYBRID_EX）才能区分「允许 TLS」和「强制 NLA」——只问后者永远只会拿到权限最高的那个。结论直接决定内置客户端要不要实现 CredSSP + NTLM，而这一点光看 3389 开不开是问不出来的。报文的 19 字节 client hello 是从本机 mstsc 抓下来的真实包，失败码表按 FreeRDP `libfreerdp/core/nego.h` 抄：`0x1 SSL_REQUIRED_BY_SERVER / 0x2 SSL_NOT_ALLOWED_BY_SERVER / 0x3 SSL_CERT_NOT_ON_SERVER / 0x4 INCONSISTENT_FLAGS / 0x5 HYBRID_REQUIRED_BY_SERVER / 0x6 SSL_WITH_USER_AUTH_REQUIRED_BY_SERVER`。解析时 RDP_NEG 数据在第 11 字节、值在第 15 字节——少算 4 字节会把 length 字段当成 failureCode 读出一个看似合理的错值（踩过一次）
 - **导出 `.rdp`**：RDP 6 的「键:类型:值」逐行文本（CRLF、UTF-8 无 BOM，与 mstsc 习惯读的 ANSI 对 ASCII 内容字节一致），经分享出口发出去，在电脑上双击即可连接。**不写 `password 51:b:` 字段**——那只是可逆编码，等于把密码留在文件里
 - 真机实测：对开着 3389 的 Windows 机器握手成功、往返 33 ms；导出的 `.rdp` 内容逐行核对正确；分享面板能选到网盘与文件管理器
 
-### 远程桌面 · 内置通道（rdpcore/ + IronRDP）
+### 远程桌面 · 内置通道（freerdpcore/ + FreeRDP 官方 Android 客户端）
 
-不装任何外部客户端，在应用里连、在应用里看画面、在应用里操作。**协议层不是自己写的**：接的是 IronRDP，真机上已经能连上一台强制 NLA 的 Windows 11 并实际操作它（下面「已验证」有具体结论）。
+不装任何外部客户端，在应用里连、在应用里看画面、在应用里操作。2.x 换的做法是：**协议层、会话界面与控制逻辑都直接用 FreeRDP 官方 Android 客户端**（FreeRDP 3.28.0，`client/Android/Studio/freeRDPCore`），而不是像 1.x 那样自绘会话界面。真机上已连上强制 NLA 的 Windows 11：点开始按钮能弹出 Windows 菜单、键盘能在 Windows 搜索框里打出文字（见「已验证」）。
 
-- **引擎选 IronRDP**（Rust，`Devolutions/IronRDP`）：四个候选里只有它把 **NLA/CredSSP（NTLM + Kerberos）** 实现完了，而这台虚拟机与本机都实测回 `HYBRID_REQUIRED_BY_SERVER`——不实现 CredSSP 就连不上。FreeRDP/aFreeRDP 是 C，要 cmake + ninja + NDK + 交叉编译 OpenSSL；Thincast 是 .NET/Windows 客户端，跑不到安卓上
-- **只引 facade**：依赖清单里只有 `ironrdp`（features `client/rustls/connector/session/graphics/input`）+ `tokio`。`ironrdp-client` 由 facade 重导出成 `ironrdp::client`，少一层版本对齐风险。TLS 后端选 **rustls**：选 native-tls 就得在安卓上交叉编译 OpenSSL，那正是当年 FreeRDP 路线卡死的地方
-- **架构**：Rust 侧一条会话线程持有 `CurrentThread` 运行时并驱动 `RdpClient::run()`，帧、失败、断开汇进一份共享状态；Java 侧按 30 fps **轮询取帧**（`state` / `copyFrame`）。刻意不做「回调进 JVM」——那要管 JavaVM 句柄与 `AttachCurrentThread`，生命周期一错就是随机崩溃，而轮询最多带来一帧延迟
-- **`run()` 不 spawn，用 `tokio::pin!` 和取帧循环一起 select**：`tokio::spawn` 要求这条 future 是 `Send`，而它穿过 `ironrdp-client` 里几个借 `&UnboundedSender<RdpInputEvent>` 的 async fn，rustc 的高阶生命周期推不出来，直接报 "Send is not general enough"。反正运行时是 CurrentThread，单任务轮询与 spawn 在这个模型下没有区别
-- **JNI 那层仍是手写**（`jni` crate 会多引 proc-macro 依赖），函数表槽位下标用脚本按 NDK 自带的 `jni.h` 数出来，并与规范里可查的槽位互相印证（GetVersion=4、FindClass=6、GetStringUTFChars=169、NewByteArray=176、SetByteArrayRegion=208、SetIntArrayRegion=211）
-- **文本一律以 UTF-8 字节数组跨边界**，不用 `NewStringUTF`：那个函数要的是「修改版 UTF-8」，中文机器名或账号会出乱码
-- **凭据只走一次 JNI**：`nativeStart(host, port, user, domain, password, device, width, height)`，账号由会话页在同一进程里向 `CredentialStore` 取（缺账号时先弹凭据框，因为 NLA 没账号握不了手）。密码不进 Intent、不进连接簿、不进日志，`device` 取 `Build.MODEL` 只作 Client Info 里的电脑名
-- **键鼠状态交给 IronRDP 的 `Database`**（`ironrdp_input`），不自己记：它负责「按下过就不再重复发按下」「扩展键的 E0 前缀」「按钮事件不带 `PTR_FLAGS_MOVE`」「按下与抬起一一对应」，还带 `release_all`——切后台 / 弹输入法 / 换模式前必须调它，否则远端会一直以为 Ctrl 还按着，回来就是「什么都没点但全在选中文本」
-- **按钮事件不带 `PTR_FLAGS_MOVE`** 这一条是踩出来的：MS-RDPBCGR 把「位置变化」与「按键状态变化」分成两类事件，合并着发的时候远端指针会跟着悬停出 tooltip，但点开始菜单没反应。`Database` 把位置与按键拆成两条、顺序也对
-- **拖动时移动事件还得带按键位**：Windows 把指针事件的按钮位当**当前状态**看，只发 `PTR_FLAGS_MOVE` 会被当成「左键已松开」——按下之后第一下移动就断了，窗口、图标、框选全都拖不动（日志里"按下保持到抬手"也看不出来）。原生层在发送前给移动事件补上按住的键位（`LEFT_BUTTON`/`RIGHT_BUTTON`/`MIDDLE_BUTTON_OR_WHEEL`），和 FreeRDP 的做法一致
-- **两种指针模式**：触控模式对齐 Win11 触摸屏——**轻点=左键、双击=双击、单指滑动=滚动（带惯性）、按住 500 ms 弹出方块提示且松手=右键、按住后拖动=拖拽、双指张合=缩放**，按下时还不按键（等判定），所以滑动页面不会变成框选；手指点在哪儿远端光标就落在哪儿，屏幕上不画鼠标箭头。鼠标模式把画面当触摸板，手势对齐笔记本：**轻点=左键、双指轻点=右键、三指轻点=中键、轻点后紧接着按住拖动=拖拽（tap-and-a-half）、双指滑动=滚动（纵向横向都行）、双指张合=缩放**。**指针带触摸板式加速**：慢速移动 0.75× 增益、快速滑动最高 2.25×（再乘灵敏度滑块），慢速点小目标稳、快速一划能横跨桌面。进入拖拽后不用先空走一段：轻点之后按住 180 ms 就直接按下左键，或移动超过半个 touchSlop（约 8 px）立即按下；两条入口只发一次按下，双击的第二下短于 180 ms 抬起不受影响。长按不动 600 ms 松手也等于右键（手机上比双指顺手）。鼠标模式下光标位置按**远端像素**累加，换分辨率或旋转都不会让光标跳走；灵敏度可调（50%–400%）
-- **键盘三条通道**：软键盘文本走 Unicode 事件（远端不必知道手机是什么布局，中文输入法组合中的拼音不会被当成字符发出去）；功能键面板走扫描码（Esc/Tab/Enter/Space/Bksp/Del/Ins/Home/End/PgUp/PgDn/方向/Menu/Caps/F1–F12）；接了 OTG/蓝牙键盘时 `dispatchKeyEvent` 直接翻译成扫描码。**修饰键做成可锁存**：Ctrl/Alt/Shift/Win 点一下按住不放，关闭面板后依然有效（状态行会一直标着「按住 Win」），这样才能做 Win+E、Ctrl+C 这类组合——手机上没法一只手按 Ctrl、另一只手点屏幕
-- **Ctrl + Alt + Del 是真的能用**：按扫描码序列发出去，Windows 11 认这串键位，真机上直接唤出了安全注意序列界面（锁定 / 退出登录 / 更改密码 / 任务管理器）。但那个界面会重置服务端的键盘状态，所以发完顺手清掉锁存的修饰键
-- **滚轮是真的**：`VERTICAL_WHEEL` + ±120（Windows 一格的固定值）。IronRDP 的 encode 会按符号自己补 `WHEEL_NEGATIVE` 位并把数值塞进 flags 低 9 位，所以只需如实传格数，不要自己去拼那一位
-- **连接详情（对标 mstsc 的「连接质量」对话框）**：点状态行打开，正文可选可复制。分三段——[客户端详情] 应用版本、本地系统、内核；[网络详情] 传输协议（如实写 TCP：IronRDP 还没有 RDP 的 UDP 传输）、往返时间（预检时 TCP 握手的实测值）、本次接收速率与累计流量、画面帧率、声音与音频包数；[远程计算机详情] 会话类型、网关、远程计算机（域名会显示解析结果，IPv6 自动加方括号）、状态、尺寸、码率、指针模式、输入统计。顶部一句「连接质量」按往返时间分档（≤30 ms 很好 / ≤80 好 / ≤150 一般），帧率不参与——静态桌面本来就是 0 帧，拿它判网络会误伤
-- **码率三档**（显示对话框）：省流 = 16 位色 + RemoteFX 有损编码（位图最小）；均衡 = 32 位色 + 有损（默认）；清晰 = 32 位色 + 从 codec 列表里去掉 RemoteFX（`remotefx:off`），文字最锐利、位图载荷最大。色深与 codec 都在握手时协商，改档位自动重连一次。连接详情里同时给出"按未压缩像素算"的画面流量与 `TrafficStats` 采到的**真实接收字节**，调档位时可以直接对比
-- **断线怎么被发现**：远端正重启或休眠时 TCP 常常既不 RST 也不 FIN，客户端不发数据就永远不知道对面没了（表现就是画面停住、状态还写着已连通）。现在开了 IronRDP 的 `with_fake_events_interval(20s)`：空闲时补一条**原地**鼠标移动（位置不变，画面上看不出来），既是 NAT 保活，也让死链在几十秒内撞上 RST；`run()` 结束收尾时再把队列里排着的 `Terminated` 读出来，状态行写「已断开 · … · 连接中断：<原因>」，工具栏同时把「断开」换成「重连」
-- **有声音**：连接时声明 RDPSND（PCM 44.1 kHz 立体声 16 位），服务端把音频从静态通道推过来，ironrdp-client 里的 cpal 后端直接交给 Android 的 **AAudio** 播放，跟随系统媒体音量、不需要额外权限。**还有一个只有踩过才知道的前提：会话里必须同时挂上 RDPDR 通道**——Windows 只在存在设备重定向通道时才给客户端建"远程音频"设备并启动 rdpsnd；只声明 RDPSND 的话通道会被接受，但服务端一个音频包都不发（IronRDP 上游 issue #1791）。所以依赖里开了 `client-rdpdr`，客户端挂一个 Noop 的 RDPDR（不重定向任何设备）。四处安卓/协议特有的坑：
-  - cpal 的 Android 后端要从 `ndk_context` 取 JavaVM 与 Application Context（查 AudioTrack 缓冲用）；`nativeStart` 里手工取 `GetJavaVM`（槽 219）和 `NewGlobalRef`（槽 21）各一次，Context 必须转成全局引用
-  - `libaaudio.so` 只有 API 26 才有桩库，所以 Rust 侧**按 API 26 链接**：这个 `.so` 在 Android 7.x 上加载失败，`RdpNative.isAvailable()` 会收起内置远程桌面入口（应用其它部分不受影响）
-  - 上游 `ironrdp-rdpsnd-native` 默认带 opus（`libopus_sys` 要 CMake 从源码编），工程只要 PCM，所以把 0.7.0 的源码复制到 `rdpcore/third_party/` 并把默认特性留空，用 `[patch.crates-io]` 指过去——`src/` 与原版逐字节相同，只改了 `Cargo.toml`
-  - **cpal 建出来的流必须 `play()`**：AAudio 上新建的输出流默认是停着的，不 `request_start()` 回调永远不触发——上游 0.7.0 漏了这一步，表现就是"音频包一直收到、就是没声音"。本地副本已补，并在启动时打一行 `RDPSND 输出流已启动`
-  - 连接详情会显示「声音：已开 / 未开 · 已收 N 个音频包」，排查看这一行：远端在放声音时 N 应该一直涨；N 不动 = 服务端没发（或没在放）；N 在涨却听不见 = 手机侧音量/蓝牙路由；显示「已开」而远端仍旧没声音，先看电脑那边（静音、播放器静音、输出设备选错）
-  - 日志里能确认端到端协商：`ironrdp_rdpsnd::client` 会打出 `AudioFormat(V8, …)` 与 `Training` 两条 debug 记录，随后每包音频会有一条 `RDPSND wave packet`（只记前 3 包）
-- **版本号自动递增、APK 带版本名**：版本存在根目录 `version.properties`，`app/build.gradle` 在配置阶段检查请求的任务名——`assemble*` / `install*` / `bundle*` / `package*` 会先把 `versionCode` 与 `versionName` 的末位 +1 再写进配置（所以 APK 里就是新号），lint 之类的任务不触发；APK 输出名是 `工具箱-<版本>.apk`（AGP 9 的 `VariantOutput.outputFileName`）
-- **构建开关在本机的 `local.properties` 里**（`rdpNative.enabled` / `cargo` / `ndk` / `lib`），仓库里的 `gradle.properties` 不放绝对路径：没装 Rust/NDK 的人照常 `assembleDebug`，`RdpNative.isAvailable()` 返回 false，界面上「远程连接」这个入口自动收起，连接簿的复制链接/导出 `.rdp` 仍可用
-- **交叉编译要备齐两套工具链**，这是接 IronRDP 之后新冒出来的成本：
-  - 目标侧：`aws-lc-sys`（rustls 的默认后端）带 C 与汇编，得把 NDK clang 交给 `CC_/AS_/AR_/CFLAGS_<三元组>`，且 `--sysroot` 必须是 `D:/...` 形式（MSYS 的 `/d/...` 会被当相对路径，症状是一个头文件都找不到）
-  - 宿主侧：build script 本身是宿主可执行文件，链接要 Windows SDK 的 `ucrt\x64`、`um\x64` 与 VS 的 `lib\onecore\x64`，也就是 `LIB` 环境变量。要么从 Developer Prompt 里构建，要么用 `rdpNative.lib` 显式给一份；缺了它一定链不动，构建会在配置阶段直接报错而不是让你撞一个看不懂的 link 错误
-- **远端光标自己画**：连接时声明支持「服务端指针」，鼠标形状因此走独立的指针更新报文，而不是由服务端烤进画面。原生层缓存形状（非预乘 ARGB）与热点，Java 侧用一层叠加 View 画在 Surface 之上——单独一层是因为鼠标模式下光标每动一次都要重画，整帧重绘得把 3 MB 位图重新刷上 Surface，拖动会明显卡；这一层只失效自己。服务端说「用默认箭头」时自己画一个（热点在箭尖），说「隐藏」时（全屏视频一类）就不画
-- **控件浮在画面上，不占布局高度**（参照微软 Windows App 的会话界面）：收起时是一枚**半透明小把手贴在右边缘、垂直居中**，点开才在顶部展开完整一排——收起 / 鼠标·触控 / 键盘 / 平移 / 横屏 / 全屏 / 功能键 / 显示 / 断开（按钮多，外面套了一层横向滚动，窄屏也挤得下）；状态行只在展开时显示，出错会自动展开。「断开」有二次确认，断开会话就退回上一页；会话已经结束时它变成「重连」。手势提示在切换模式时出现 4 秒后淡出，不再常驻挡桌面；鼠标模式底部那排按键（左/右/中/滚轮）已去掉，触摸板手势本身已经覆盖
-- **自适应分辨率**（显示对话框里的勾选）：按手机**当前方向**的实际像素请求桌面（竖屏 1080×2340、横屏 2340×1080），1:1 不缩放；旋转后 400 ms 左右自动按新尺寸重连（分辨率是握手时定的，MS-RDPEDISP 在这台主机上没人理）。勾选后分辨率预设会灰掉
-- **IPv6 也能连**：地址栏收 `fe80::1` 或 `[fe80::1]`（方括号在入库时去掉，同一台机器只有一种写法）；拼 `host:port` 时按协议补成 `[v6]:port`，导出 `.rdp` 与复制 `freerdp://` 链接同理
-- **域名也能连**：连接簿的地址栏收 IP 或主机名。非字面量地址先在本进程解析（优先 IPv4：家用局域网里 IPv4 更稳，而且凭据是按扫描页看到的那个 IP 存的），状态行显示 `PC-HOME → 192.168.1.100:3389`；按域名连时如果域名下没有账号，会回退去查解析出来的 IP 那一条，不至于因为写法不同再输一次密码。域名解析页长按域名还有「用远程桌面连这台」
-- **横屏 / 全屏**：横屏按钮切到 `SENSOR_LANDSCAPE`（两个方向都认），再按回竖屏；全屏按钮走 immersive sticky，把状态栏与导航栏一起藏掉，系统标题栏在进页面时就隐藏了
-- **双指缩放 + 双指滚动**：双指手势先判意图——两指间距变化大是缩放（最多 4×），中点位移大是滚动（两指上滑内容跟着上去，和手机一致）；判过一次就锁定，不会中途改主意。放大时焦点下的远端像素保持不动；**放大后视角会跟着光标走**——光标靠近边缘时画面朝那个方向推（不跳到中心，像摄像机跟拍），捏合/双击结束时光标若已整只在视野外则直接居中过去；平移控件开着时单指拖动是挪画面而不是点击（放大后必须能选一种）；平移模式下双击在 1× 与 2× 之间切换。平移量夹在「画面仍铺满视图」的范围内，拖到边界不会露黑边
-- **画面两种缩放**：等比适应（留黑边，默认）或拉满屏幕。所有坐标换算都走同一个 `Layout`：横竖两轴分开存缩放比，拉满时两轴不同，只记一个 scale 的话点哪儿和实际点到的地方会系统性地偏。IronRDP 交出来的帧是 `0x00RRGGBB`，Java 的 `ARGB_8888` 只要补上不透明 alpha，**不需要换红蓝通道**（真机核对过颜色）
-- **画质（16 位色）**：「流畅」一档让服务端按 RGB565 发位图，位图载荷减半，公网带宽紧张时最有效的一档；色深是连接时协商的，改完自动重连
-- **分辨率**：预设 **1920×1080（默认）** / 1600×900 / 1366×768 / 1280×800 / 1024×768，另有一项「匹配本机」按手机物理像素算一个横屏桌面（远端一个像素对屏幕一个像素，字最锐）；「自适应手机当前分辨率」是独立的勾选，默认关。改尺寸走**重连**而不是 MS-RDPEDISP 的动态调整：协议里那条路 IronRDP 已经接上，但这台 Windows 11 主机实测完全不理那个 PDU（发出去既没有回执，也没有 Deactivation-Reactivation），所以选确定能成的做法，两三秒换一个必然生效的结果
-- **会话页不锁方向且声明了 `configChanges`**：原生会话线程活在进程里，Activity 一重建就会出现「画面还在、会话已断」的错乱；远端是桌面，横屏也确实更有用
-- 已验证（Mi 10 Pro → 192.168.1.100，Windows 11，强制 NLA）：`已连通`，桌面铺满整屏、控件浮在上面；横屏一键切换、全屏后桌面顶到四边；**平移模式下双击放大到 2×**、单指拖动跟手且拖到边界停住；桌面、壁纸、任务栏、图标全部正常；触控模式单击开得出开始菜单、双击启动 Edge；**鼠标模式**拖动把光标推到开始按钮上（光标跟着走，形状随上下文变：桌面是箭头、文本输入框上是 I 形）、再按「左键」点开菜单；**应用内键盘**打进去的 `notepad` 出现在远端搜索框；**锁存 Win 后按 E** 打开资源管理器；**Ctrl+Alt+Del** 唤出安全界面；**分辨率**从 1920×886 切到 1024×768 后重连生效；**拉满屏幕**立即重绘；退出会话页无崩溃、无 native abort。代价是体积：`librdpcore.so` arm64 约 13.9 MB、armv7 约 9.65 MB（未压缩）
-- **还没做的**：位图缓存与 RemoteFX/RFX 编码协商（只走默认位图更新）、剪贴板同步、多路并发会话（原生侧是一份全局 `SESSION`）、`Pause`/`PrintScreen` 这类双前缀键
-
+- **组装方式**：`freerdpcore/` 是从上游 `freeRDPCore` 裁出来的库模块——保留 `SessionActivity` / `SessionView` / `SessionInputManager` / `TouchPointerView` / `LibFreeRDP`（JNI）这些会话界面与控制逻辑，删掉基于 Room + SQLCipher 的 aFreeRDP 主页与连接簿（连接簿仍用工具箱自己的）；原生层就是上游的 `android_*.c`，编成 `libfreerdp-android.so`
+- **设置走 FreeRDP 自己的解析器**：工具箱的 `RdpSessionActivity` 只做三件事——规范化地址、取凭据（缺了先弹框）、把参数拼成 `BookmarkBase`；`LibFreeRDP` 再把书签翻成命令行交给原生端 `freerdp_parse_arguments`，不是我们逐项 set settings。实际发出去的那一串（按 `LibFreeRDP.java` 的组装顺序）：
+  - **每次都发**：`/gdi:sw`（软件 GDI，:323）、`/v:`（IPv6 会自动补方括号，:341）、`/port:`、`/u:` `/d:` `/p:`（有值才发）、`/size:WxH`、`/bpp:`、`/scale:`（:399，缩放预设恒为 100，没有 UI 改它）、`/clipboard`、`/disp`（:490-491，无条件——会话内改分辨率靠它）、`/kbd:unicode:on`、`/cert:ignore`、`/log-level:`（取自上游 `DebugSettings` 的默认级别）
+  - **按工具箱的书签取值才发**：`/rfx` + `/network:auto`（:439，`RdpSettings.lossyCodecs()` 为真时）、`/gfx` + `/network:auto`（:445，工具箱固定 `setGfx(true)`，同时 `setH264(false)` 所以不会出现 `/gfx:AVC444`——openh264 没编）、`/audio-mode:0` + `/sound`（:526-529，`setRedirectSound(0)` 即声音播在手机上）
+  - **工具箱里永远发不出去**（条件项，但对应的开关没人能打开）：`/sec:nla|tls|rdp`（:416-425，`BookmarkBase` 的 `security` 默认 0 = 让 FreeRDP 自己谈，全仓没有 `setSecurity` 调用点）、`/tls:`（:369，同样没设置）、`/cert-name:`（:433，`certName` 写死空串）、`/client-hostname:`（:328，默认偏好是空串）、`/drive:sdcard,`（:482，`setRedirectSDCard(false)`）、`/printer:`（:494，`setRedirectPrinter(false)`，而且 `CHANNEL_PRINT_CLIENT=OFF`，加了也静默无效）、`/microphone`（:534）、`/dvc:rdpecam`（:539）、`/app:program:`（RemoteApp）、`/admin`、`/vmconnect:`、`/load-balance-info:`（网关）
+  - **`/cert:ignore` 是硬编码的**（:543），不是设置项。后果：`SessionActivity.OnVerifiyCertificateEx` / `OnVerifyChangedCertificateEx`（:1118-1134）、`SessionDialogs.verifyCertificate/verifyChangedCertificate`（:180,202）、以及 `settings_app_security.xml` 里那个「接受所有证书」的偏好，**全都是走不到的死路**——自签名证书直接连、不发提示，中间人也没有任何提示。想按上游那样问一次，得把这行改成读偏好（`getAcceptAllCertificates` 默认已经是 `false`，改完默认就会弹）
+- **会话页上的工具箱定制**（在 FreeRDP 会话界面之上加的一层）：左上角一排**半透明文字按钮**——收起、鼠标/触控（指针模式）、分辨率、键盘、信息、横屏/竖屏、全屏/退出全屏、断开；切换类的文字一律写「点下去会切到什么」，选择都会记住。**「收起」后只剩一枚 ☰ 把手贴右边缘垂直居中**（半透明，点一下回顶部成一排），把整块屏幕让给桌面；**长按 500 ms 可以拖着整条走**（收起后的把手也能拖），松手吸附到最近的一侧，收起/展开时按新宽度重新贴边。按钮样式与键盘、剪贴板、声音这些是 FreeRDP 的，但**手势与缩放这一层是工具箱自己的实现**（从 1.x 的会话页搬过来），见下两条。「信息」弹窗显示：主机端口、桌面尺寸与色深、**当前缩放与指针模式**、**协议（RDP 版本 / NLA / TLS / RemoteFX+RDPGFX / UDP 多传输状态）**、**帧率与流量（速率 + 会话内累计）**、引擎版本、客户端版本、已连接时长，以及启动前测的 TCP 握手耗时。向服务端请求的桌面尺寸在**分辨率**那一项里选（默认 1920×1080，也可以「适配屏幕分辨率」按手机像素要）
+- **缩放只有等比放大缩小，不拉伸**：基数永远是 `min(视口/画面)` **整幅放下**（横竖屏都一样，画面一定完整，可能留黑边——宁可留黑边也不裁掉任务栏）；倍率 1×~4× 由捏合改，基数在可视区变化时重算（全屏、转屏、软键盘都算），转屏时只动基数、用户的放大倍数保留，焦点下那个远端像素在捏合时不挪位；已经放大时双击回到 1×（没放大时不拦双击——桌面图标全靠双击打开）。画面**照 1.x 的方式跟手**：光标一进边缘带（15% 或 64dp）就把画面推到位，光标随即停在带子边上，画面继续跟着手指滑——边滑边走。**松手时不补动画**（1.x 的对准只在捏合/双击缩放、转屏、换分辨率后做；每次松手都滑一下就是顿挫）。滚动量统一是「现在位置 − 想要位置」（写成 `低 − 位置` 方向就反了，光标看着像在倒退），横竖轴各算各的。判据是「画面比视口大」且按轴判，内容尺寸按 `位图 × 缩放` 算而不是读 `getWidth()`（刚改完缩放时布局还没跑，读旧值就会算错），对不准的那一帧延到下一帧再做（可滚动范围随内容尺寸变）。手感只有一个旋钮 `FOLLOW_GAIN`（现为 1.0 = 1.x 原样）。画面超出视口时单指拖动让给 `ScrollView2D` 本地平移
+- **不开全屏也不给状态栏挖白**：会话根布局不再按 `statusBars | displayCutout` 的 top 留 padding——MIUI 把刘海也算进 top，实测横屏留 194 px、竖屏留 211 px，而系统真正让给状态栏只有 35 px，多出来的就是一块没人用的黑。现在桌面铺到屏幕顶、半透明状态栏压在上面，工具栏自己按 `statusBars().top` 往下让
+- **想要零黑边靠分辨率对上比例，不靠拽变形**：会话工具栏的**分辨率**（或连接簿 → 显示设置，两处是同一个对话框、同一份存储 `SessionResolution`）——☑「适配屏幕分辨率」按手机此刻的实际像素要桌面，或选预设（1920×1080 / 1600×900 / 1366×768 / 1280×800 / 1024×768）。
+- **改分辨率不用重连**：会话内选完点「应用」直接发 MS-RDPEDISP 的 Monitor Layout PDU（`/disp` 通道，`LibFreeRDP.sendMonitorLayout()`），桌面当场重排。1.x 认定「这台 Windows 完全不理这个 PDU」，那是 IronRDP 的发法；FreeRDP 实测有效。应用后会等 1.8 s 比对新位图尺寸再给结论，服务端真不认时提示「下次连接按它要桌面」而不是假装成功
+- **两种指针模式**（工具栏一键切，选择会记住）：**触控**=点哪儿打哪儿、单指滑动=远端滚轮（带甩动惯性）、按住松手=右键、按住后再动=拖拽；**鼠标**=整块画面当触摸板推远端光标（sqrt 加速曲线：慢 0.75×、1 px/ms 1.5×、4 px/ms 封顶 2.25×）、轻点=左键、轻点后按住=tap-and-a-half 立即拖拽、按住 600 ms 松手=右键；画面铺不满时**四周黑边也归触摸板**（黑边属于 `ScrollView2D`，事件由它的 `OnTouchListener` 转给 `SessionView.handleExternalTouch()`，触摸板只吃相对位移所以不用换算坐标；直控模式不接，黑边上的拖动仍是本地平移）。两指轻点=右键、三指轻点=中键、双指滑动=横/纵滚轮（30 dp 一格）、捏合=缩放
+- **光标画在远端画面里**：FreeRDP 把 `colorPointerFlag` 写死为 TRUE，服务端因此从不把光标烤进帧缓冲、也从不回传光标坐标。所以 `SessionView.onDraw()` 画完位图后自己把服务端下发的光标位图合成在画面内，坐标取自我们发出去的事件（`SessionInputManager.trackPointer()`——左/右/中键、拖动、悬停移动都记一次）；光标最小按原始尺寸画（画面缩到 0.56× 时跟着缩就只剩 18 px），服务端要隐藏光标时退回默认箭头而不是画没了，本地 `PointerIcon` 全程 `TYPE_NULL`，外接鼠标也不会出现两个光标
+- **工具栏长按拖动的两个坑**：①它外面套着 `HorizontalScrollView`，长按刚到手一动，父级的 `onInterceptTouchEvent` 就把手势抢走并丢一个 `CANCEL` 下来，拖动永远进不去（实测 DOWN → armed → 立刻 CANCEL、一个 MOVE 都没有）——按下时 `requestDisallowInterceptTouchEvent(true)`；②落位只写 `leftMargin` 不够，之前调过 `setMarginStart()` 的话 RelativeLayout 取的是 start 边距，横向吸附会停在 x=0，所以 start/left 要一起写
+- **UDP 传输用不了（不是配置问题）**：`libfreerdp/core/multitransport.c` 里客户端侧的处理器就叫 `multitransport_no_udp()`——服务端发 UDP 引导请求时直接回 `E_ABORT`；`RDPUDP` 只有服务端实现。`/multitransport` 开关只是把标志写进能力集，通道建不起来。所以信息面板的传输方式永远显示 `TCP`，并注明「服务端支持 UDP，FreeRDP 客户端未实现」。mstsc 里那个 UDP 是微软客户端自己实现了 MS-RDPEMT 的数据面
+- **信息面板的数据来源**：协议与安全是原生层新增的 `freerdp_get_protocol_info()` 读 `instance->context->settings` 拿到的**协商结果**（不是我们请求了什么，而是谈成了什么）。帧率按每秒 `OnGraphicsUpdate` 的次数算，桌面静止时就是 0。**流量不走 `freerdp_get_stats`**——它的入参是内部的 `const rdpRdp*`，而 3.28 里 `freerdp->settings`、`freerdp->rdp` 已不是公开成员（编译直接报 no member），所以用 `TrafficStats.getUidRxBytes`，以连接建立时的值为基线只报会话期间的量；这台机不支持时明说「本机不支持流量统计」而不是显示 0
+- **控制逻辑其余部分仍是 FreeRDP 的**：硬件键盘走 `KeyboardMapper` 转扫描码、剪贴板（cliprdr 文本 + 图片双向）、声音（RDPSND + OpenSL ES）、GFX 通道，都是上游实现。**从 1.x 接回来的只有输入手感那一层**：指针加速曲线、触摸板式推光标、软跟随（`SessionView` 的单指状态机 + `FOLLOW_GAIN`）。
+- **两处上游界面现在够不着**（裁剪留下的口子，如实记着）：① **扩展键面板没有入口**——`SessionInputManager.toggleExtendedKeyboard()` 唯一的调用点是 `onTouchPointerToggleExtKeyboard()`（:513），而那个 `TouchPointerView` 在 `SessionActivity.java:307` 被永久 `setVisibility(GONE)`（远端光标已改由 `SessionView` 画进画面）。所以 Fn / 小键盘 / 方向键 / 特殊键那几块 `res/xml/*_keyboard.xml` 面板代码和资源都在、点不到，工具栏的「键盘」只开系统键盘。② **应用设置页整体不可达**——`ApplicationSettingsActivity` 没在任何 manifest 里声明（`freerdpcore/src/main/AndroidManifest.xml` 只有 `SessionActivity` 与 `ClipboardImageProvider`），而 `SessionDialogs.java:119→230` 会 `startActivity` 它：真走到「实验特性」拦截那一步（`SessionActivity.java:1158`）就是一个 `ActivityNotFoundException`。被读却没人能改的偏好有 `clientName`、`hideStatusBar/hideNavigationBar`、`keepScreenOnWhenConnected`、`acceptAllCertificates`、`swapMouseButtons`、`invertScrolling`、`useBackAsAltf4`、`nightMode`、`disconnectTimeout` 与 `experimental.*`——**指针模式和桌面分辨率是例外**，它们有自己的对话框（工具栏 + 连接簿 → 显示设置），存在同一份偏好文件里
+- **构建**：`third_party/build-android.sh` 交叉编译 FreeRDP + OpenSSL 静态库（源码按固定版本拉取、SHA-256 校验）；`:freerdpcore` 的 `externalNativeBuild` 把 `android_*.c` 连同静态库编成 `libfreerdp-android.so`，按 `abiFilters`（`arm64-v8a` + `armeabi-v7a`）进 APK。1.x 的 Rust/`librdpcore.so` 这条线**源码已删**（`RdpNative.java` 与 `rdpcore/` 都不在了），但本机还留着当时的编译产物 `build-shim/arm64`、`build-shim/armv7`（约 16 MB 的 `.so` + `CMakeCache.txt`/`build.ninja`），已加进 `.gitignore` 不入库；`third_party/build-android.sh:7,44` 与 `freerdpcore/src/main/cpp/CMakeLists.txt:4` 的注释里还在讲「链进 `librdpcore.so`」，那是历史注释，读到时知道它不参与本次构建就行
+- **必须保留 rail 通道**：`android_rail.c` 直接引用 rail 客户端入口（RemoteApp 窗口），构建脚本里 `CHANNEL_RAIL_CLIENT=ON`
+- **JNI_OnLoad 要合并**：`android_freerdp.c` 与 WinPR 的 `android.c` 各有一个 `JNI_OnLoad`（后者缓存 JavaVM 给 `winpr_jni_attach_thread` 用），静态链接必然重名；链接放行后由我们的 `JNI_OnLoad` 同时写两份缓存
+- **`LibFreeRDP` 只加载一个 .so**：上游 APK 里 `freerdp3` / `freerdp-client3` / `winpr3` 是分开的共享库，本工程把它们全部静态链进 `libfreerdp-android.so`，所以静态块里只保留 `System.loadLibrary("freerdp-android")`
+- **1.x 认为「安卓上交叉编译 OpenSSL 必死」，这次为什么能通**（细节见 `third_party/README.md`）：缺的其实只是 GNU make 与几个 perl 核心模块——GNU make 用 NDK 自带的那个，精简 perl 缺的 `Locale::Maketext` / `ExtUtils::MakeMaker` / `Pod::*` 补进 `third_party/perl-lib`；OpenSSL 用 `no-asm no-shared` 交叉编译。另外几个真机/静态链接坑：OpenSSL 3 把 MD4/RC4 挪进 legacy provider（按官方 Android 构建开 `WITH_INTERNAL_MD4/RC4/MD5`）；32 位 ARM 的 `__thread` 在 ThinLTO 下 `-femulated-tls` 失效（关 LTO）；安卓没有 `HOME`（start 时指到应用私有目录）
+- **IPv6 也能连**：地址栏收 `fe80::1` 或 `[fe80::1]`（方括号在入库时去掉）；拼 `host:port` 时按协议补成 `[v6]:port`，导出 `.rdp` 与复制 `freerdp://` 链接同理。注意 FreeRDP 的 `/v:` 解析器只认 `[地址]` 形式，裸 IPv6 会被当成 `host:port` 判成非法参数——原生层在交给 FreeRDP 前会自动补方括号
+- **公网设备 / 域名 / DDNS**：启动器会先把域名解析成全部地址（IPv4/IPv6 都算），逐个做一次 TCP 试连（每条 1.5 s，最多 4 条），把**实测可达的那个地址**交给 FreeRDP——DDNS 换了地址、或域名同时有 A/AAAA 而其中一条不可达时，FreeRDP 自己解析可能撞上旧记录（真机实测报 `No route to host`）。信息面板会显示「域名 → 实际 IP」
+- **域名也能连**：非字面量地址先在本进程解析（优先 IPv4），按域名连时如果域名下没有账号，会回退去查解析出来的 IP 那一条，不至于因为写法不同再输一次密码
+- **会话页的旋转与全屏**：FreeRDP 的会话 Activity 自己不锁方向、声明了 `configChanges`；全屏/沉浸由它的界面处理。会话内的「全屏」开关（`forceFullscreen`）要同时参与 `onWindowInsetsChanged()` 的留白计算——只在 `hideSystemBars()` 里藏系统栏不够，留白还按设置项留着，画面就永远撑不满
+- 已验证（Mi 10 Pro → 192.168.1.100，Windows 11，强制 NLA，凭据来自连接簿）：`已连通`、画面颜色正确；**点任务栏开始按钮能弹出 Windows 搜索菜单**；**硬件键盘输入能在 Windows 搜索框打出 `not`**；声音通道 RDPSND 建立、OpenSL ES 后端加载；退出会话无崩溃；竖屏缩放 0.5625、点一下后白色描边箭头出现在画面内的点击处（服务端发过 `OnPointerSetNull` 之后仍在）；全屏 + 横屏后 `sessionScrollView = 0,0-2340,1080`、`sessionView = 0,0-2340,1316`（横向零黑边）；空闲时不再刷 `onMeasure`（修复 `applyFitZoom ↔ requestLayout` 死循环前 4 s 内 1524 次）；**触控模式按住 900 ms 松手能弹出 Win11 桌面右键菜单**、轻点关掉它、竖屏单指上滑能滚信息流；**切鼠标模式后同一段滑动改为推光标**、在画面内点一下落在光标所在位置而不是手指位置；重开会话仍是上次选的指针模式；横屏整幅放下 `sessionView = 1512×851`（整张桌面含任务栏都在眼里）；勾上「适配屏幕分辨率」后信息面板显示 `桌面：1080×2340`、`sessionView = 966×2094`——竖屏 1:1 铺满、零黑边、不变形；**会话内**改 1920×1080 → 1280×800 桌面当场重排（`sessionView 1512×851 → 1361×851`），再切「适配 + 全屏」得到 `sessionView = 2340×1080` 与屏幕完全 1:1；**信息面板实测**输出 `协议：RDP 10.12 · NLA + TLS · RemoteFX + RDPGFX · UDP 可协商未启用`、`帧率：18 fps · 流量：216.3 KB/s ↓ · 会话内 22.8 MB`（视频播放时），桌面静止时帧率与速率归 0 而累计量仍在涨；**「收起」后界面上只剩 (2249, 540) 一枚把手**，点把手八个按钮回到顶部一排
+- **未验证/边界**：声音是否真的出声（没耳测）、剪贴板双向、长时间稳定性；**双指捏合、双指滚动、双指轻点右键、三指轻点中键没机器验证过**（`adb shell input` 注入不了多点触控），外接鼠标/触摸板下的手感同理；其他机型的刘海/挖孔留白组合；画质档位（省流/均衡/清晰）还没有设置入口，现在固定取 `RdpSettings` 的默认「均衡」，`PRESET_SHARP` 那档根本到不了；**「适配屏幕分辨率」开着时旋转手机，桌面尺寸不会跟着换**——原因不是"重建会话要回到应用侧"，而是**那个分支的判断条件恒为假**：`SessionActivity.java:481-489` 只认 `getActiveScreenSettings().isFitScreen()`，而启动器一律走 `screen.setResolution("custom", 宽, 高)`（`RdpSessionActivity.java:75`，把适配后的手机像素当自定义尺寸传进去），`isFitScreen()` 因此永远是 `false`。修法有两条且都不必重连——adaptive 时改传 `"fitscreen"`，或者在 `onConfigurationChanged` 里改判 `SessionResolution.isAdaptive(SessionResolution.load(...))`；反正 MS-RDPEDISP 当场生效已经实测过（见上一条）
+- **测试环境提醒**：这台手机上有一个会注入 `KEYCODE_BACK` 的辅助/自动化应用（logcat 里是 `Input event injection from pid 941`），会在大约几秒后把 FreeRDP 会话关掉，看起来像「远程桌面自己退出」——与界面无关，测试时先关掉这类自动化
 
 ## 依赖
 
 | 库 | 许可 | 用途 |
 | --- | --- | --- |
-| `IronRDP` 0.17（crate `ironrdp`，经 `rdpcore/` 编成 `librdpcore.so`） | Apache-2.0 / MIT 双许可 | 内置远程桌面的 RDP 协议层（含 NLA/CredSSP、rustls TLS 后端） |
+| `FreeRDP` 3.28.0（`third_party/` 交叉编译成静态库；`freerdpcore/` 是它官方 Android 客户端 core 的裁剪） | Apache-2.0；Android 客户端源码 MPL-2.0 | 内置远程桌面的协议层与会话界面（NLA/CredSSP、RDPSND、WinPR、触摸指针/键盘/剪贴板） |
+| `OpenSSL` 3.5.9 LTS（静态、`no-asm`） | Apache-2.0 | FreeRDP 的 TLS/CredSSP 加密后端 |
 | `com.github.mik3y:usb-serial-for-android:3.9.0`（JitPack） | MIT | 「固件下载」的 USB 转串口通信 |
 | `org.codelibs:jcifs:3.0.4`（jcifs-ng，Central/阿里云镜像） | **LGPL-2.1** | 「局域网扫描」的 SMB 客户端，默认引擎 |
 | `com.hierynomus:smbj:0.15.0` | Apache-2.0 | SMB 读文件的可选实验引擎（见「共享文件夹 · 预览」） |
-| `androidx.compose.*`（BOM 2026.09.00）+ `androidx.activity:activity-compose` | Apache-2.0 | 共享浏览页与预览页 |
+| `androidx.compose.*`（BOM 2026.09.00）+ `androidx.activity:activity-compose:1.13.0` + `androidx.compose.material:material-icons-core` | Apache-2.0 | 共享那条线上的四页 Compose 界面；`ui-tooling` 只在 debug 变体里引 |
 | `io.coil-kt.coil3:coil-compose:3.6.3` | Apache-2.0 | 缩略图与全屏图的加载、内存缓存 |
 | `androidx.media3:media3-exoplayer / media3-ui:1.11.1` | Apache-2.0 | 视频与音频播放 |
-| `com.android.tools:desugar_jdk_libs:2.1.5` | Android SDK | 核心库脱糖（只为 SMBJ 的 `java.time` 引用兜底） |
+| `androidx.appcompat:appcompat:1.7.1`、`androidx.preference:preference:1.2.1`、`androidx.recyclerview:recyclerview:1.4.0`、`androidx.lifecycle:lifecycle-viewmodel / lifecycle-livedata:2.10.0`（`freerdpcore/build.gradle:41-45`） | Apache-2.0 | **上游会话界面自带**：`SessionActivity` 继承 AppCompatActivity、`ApplicationSettingsActivity` 用 preference 框架、键盘面板用 RecyclerView、会话状态用 ViewModel/LiveData。这五个是 `freerdpcore/` 带来的，不是工具箱自己加的 |
+| `com.android.tools:desugar_jdk_libs:2.1.5`（`coreLibraryDesugaring`） | **GPLv2 + Classpath Exception**（按它 POM 里 `<licenses>` 的声明；旧版文档误写作「Android SDK」） | 核心库脱糖（只为 SMBJ 的 `java.time` 引用兜底）。Classpath Exception 就是允许与独立作品一起链接分发的例外，应用这样用是它设计出来的用法，但**许可名要写对** |
+| `org.jetbrains.kotlin:kotlin-stdlib`（Kotlin/Compose 编译器 2.4.21 带入） | Apache-2.0 | 那 30 个 Kotlin 文件的运行时 |
+
+**间接依赖**（不写在 `build.gradle` 里，但确实在 APK 中，许可也一并按各自 POM 核对过）：
+
+| 库 | 许可 | 谁带进来的 |
+| --- | --- | --- |
+| `org.slf4j:slf4j-api` | MIT | jcifs-ng 与 SMBJ 都用它打日志（安卓上没有 SLF4J 后端，等于静默）。版本由这两个库的 POM 传递决定，本工程未钉 |
+| `org.bouncycastle:bcprov-jdk18on` | **Bouncy Castle Licence**（MIT 同许可风格，不是字面 MIT） | NTLMv2 / SMB3 加密原语，`SmbClient` 构造时 `Security.addProvider` 注册。同样是传递依赖 |
+| `net.engio:mbassador`（1.3.2） | MIT | SMBJ 的事件总线 |
+| `com.hierynomus:asn-one`（0.6.0） | Apache-2.0 | SMB3 的 DER 编解码 |
+
+> 这张表的许可逐个读的是各自 POM 里的 `<licenses>` 声明（`~/.gradle/caches/modules-2/.../*.pom`），不是照抄 README 的旧值——`desugar_jdk_libs` 那行就是靠这个抓出来写错的。
+
 
 安卓内核没有 CH340/CH341 驱动，usb-serial-for-android 在应用层实现了这些芯片的初始化、收发与 DTR/RTS 控制，因此用户不需要另装任何驱动 App；jcifs-ng 则补上了安卓没有 SMB 客户端协议栈的缺口。
 
@@ -251,11 +254,11 @@
 **其余约定**：
 
 - 包体积：debug 包 1.19 MB（无 SMB）→ 5.73 MB（加 jcifs-ng）→ 23.6 MB（再加 Compose + Coil + Media3 + SMBJ + 脱糖）。这是 debug 包（未混淆未裁剪）的数字，release 想压回去得开 `minifyEnabled` + R8 规则；共享预览这一整块功能就是这次的体积代价
-- `android.useAndroidX=true`：Coil / Media3 / Compose 都建立在 AndroidX 上，无法回避。分贝仪、域名解析、固件下载、局域网扫描、远程桌面这几页**仍然只用系统控件**，一行 androidx 都没引，打开这个开关不影响它们编译与运行
+- `android.useAndroidX=true`：Coil / Media3 / Compose 都建立在 AndroidX 上，`freerdpcore/` 也带着 `appcompat`（会话页继承 AppCompatActivity），所以这个开关无法回避。**但工具箱自己的页面里，只有共享那条线的四页（浏览、预览、解压、已下载）在用 AndroidX**；分贝仪、域名解析、固件下载、局域网扫描、远程桌面连接簿与启动器这几页仍然只用系统控件（`ListView` / `AlertDialog`），一行 androidx 都没 import。唯一的历史痕迹是 `IspActivity.java:584` 那句注释——它写着"本工程刻意不引入 AndroidX"，那是 1.x 的情况，现在这话对本工程不成立（对本页倒是成立的），列入下面的已知问题等下一轮顺手改掉
 - `settings.gradle` 增加了 `maven { url 'https://jitpack.io' }` 并用 `content { includeGroup 'com.github.mik3y' }` 限定只从它取这一个坐标（阿里云镜像上没有该库），其余依赖仍走阿里云镜像
 - 想支持更多 USB 串口芯片：`res/xml/device_filter.xml` 里加对应 VID/PID 即可，驱动库本身已内置识别
 
-**内置远程桌面的协议层用 IronRDP**（`Devolutions/IronRDP`，Apache-2.0 / MIT 双许可，与本项目其它依赖不冲突），选它而不是自己写协议的理由很直接：这台目标机实测强制 NLA，而 CredSSP（NTLM + Kerberos）是 IronRDP 已经实现完、自己写正确性代价最高的一段。`rdpcore/` 只是把它包成安卓能用的样子：会话线程、帧缓冲、手写 JNI、输入编码。构建它需要 rustup + Android targets + NDK，外加宿主侧的 Windows SDK（build script 要链 PE），因此开关默认关闭，不影响没有这套工具链的人编译本工程。
+**内置远程桌面的协议层用 FreeRDP**（`FreeRDP/FreeRDP`，Apache-2.0，与本项目其它依赖不冲突），选它而不是自己写协议的理由很直接：这台目标机实测强制 NLA，而 CredSSP（NTLM + Kerberos）是 FreeRDP 已经实现完、自己写正确性代价最高的一段。2.x 更进一步：`freerdpcore/` 就是 FreeRDP 官方 Android 客户端 core（MPL-2.0）的裁剪，会话界面、触摸指针、键盘与剪贴板都是上游实现，工具箱只负责连接簿与凭据。构建它需要 NDK + CMake + GNU make + perl（OpenSSL 的 Configure），`third_party/build-android.sh` 把这套流程固定了下来。1.x 曾用 IronRDP（Rust），2.0 换引擎的原因与踩坑记录见 CHANGELOG。
 
 ## 开源项目与致谢
 
@@ -263,8 +266,10 @@
 
 ### 远程桌面
 
-- **[IronRDP](https://github.com/Devolutions/IronRDP)**（Devolutions / Teleport 维护，Apache-2.0 / MIT）——内置远程桌面的协议层：NLA/CredSSP、TLS、位图与指针、输入编码、RDPSND 音频都由它实现；`rdpcore/` 只是把它的 facade 包成安卓可用的会话线程与手写 JNI。`rdpcore/third_party/ironrdp-rdpsnd-native` 是它 0.7.0 的本地补丁副本（关掉 opus 默认特性、补上 `stream.play()`），许可不变。特别感谢上游 issue #1791 指出「会话里没有 RDPDR 通道时 Windows 不会推音频」，这条让我们少走了很久弯路
-- **[FreeRDP](https://github.com/FreeRDP/FreeRDP)**（Apache-2.0）——没有链接它的代码，但 RDPSND 的协商顺序、滚轮与指针事件语义都以它为对照实现；aFreeRDP 也是早期「交给外部客户端」那条路的依托
+- **[FreeRDP](https://github.com/FreeRDP/FreeRDP)**（Apache-2.0）——内置远程桌面的协议层：NLA/CredSSP、TLS、位图与指针、RDPSND 音频、WinPR 运行时都由它实现；`freerdpcore/` 直接采用它官方 Android 客户端 core 的会话界面与控制逻辑（MPL-2.0），只裁掉了 aFreeRDP 的 Room/SQLCipher 连接簿；构建参数也参考了上游 `client/Android/cmake/ExternalFreeRDP.cmake`（`WITH_INTERNAL_MD4/RC4`、rail 通道等）
+- **[OpenSSL](https://www.openssl.org/)**（Apache-2.0）——FreeRDP 的 TLS 与 CredSSP 加密后端，静态链入；源码包按 SHA-256 校验
+- **[IronRDP](https://github.com/IronRDP/ironrdp)**（MIT / Apache-2.0 双许可）——**1.x 的协议层**（Rust 编成 `librdpcore.so`）。2.0 已经把这条线整个换成 FreeRDP，本工程**不再链接它的任何代码**；留这一条是因为 1.x 的 CHANGELOG 与大量实测结论都建立在它上面，而且当初它的接口形状决定了会话页的写法。当年对照它确认过 RDPSND 的协商顺序、滚轮与指针事件语义；这些结论在 2.0 仍然有效（改由 FreeRDP 实现）
+- **[aFreeRDP](https://github.com/FreeRDP/FreeRDP/tree/master/client/Android)**（FreeRDP 官方 Android 客户端，MPL-2.0）——「交给外部客户端」那条路上，它是本机装过、用来对照行为的参照 App；现在 `freerdpcore/` 直接是它的 core 裁剪
 - **Microsoft 开放规范**——[MS-RDPBCGR]、[MS-RDPEA]、[MS-RDPEGDI]、[MS-RDPEDISP]、[MS-RDPEFS] 等，协议字段与握手顺序的依据
 
 ### 局域网与共享
@@ -288,10 +293,22 @@
 
 ### 原生层依赖
 
-- **[tokio](https://github.com/tokio-rs/tokio)**（MIT）、**[rustls](https://github.com/rustls/rustls)**（Apache-2.0/ISC）、**[aws-lc](https://github.com/aws/aws-lc)**（Apache-2.0/ISC）——异步运行时与 TLS
-- **[cpal](https://github.com/RustAudio/cpal)**（Apache-2.0）——安卓 AAudio 音频输出
-- **[ndk-rs](https://github.com/rust-mobile/ndk)** / **[ndk-context](https://github.com/rust-mobile/ndk)**（Apache-2.0/MIT）——安卓原生音频接口
-- **[jni-rs](https://github.com/jni-rs/jni-rs)**（MIT/Apache-2.0）、**[log](https://github.com/rust-lang/log)** / **[tracing](https://github.com/tokio-rs/tracing)** / **[android_logger](https://github.com/nercury/android_logger-rs)**——Java 互操作与日志转发
+`libfreerdp-android.so` 不是只有 FreeRDP 和 OpenSSL——把它编出来还需要一套**构建期**工具，它们不参与运行、不进 APK，但没有它就交叉编译不过（详见 `third_party/README.md`）。这一节列全，一是致谢，二是换机器时按这张表装东西：
+
+| 工具 / 库 | 用在哪 | 来源 |
+| --- | --- | --- |
+| **Android NDK** `29.0.13113456` | clang/llvm 交叉编译器；**它自带的 `make.exe` 与 `yasm.exe`**（`prebuilt/windows-x86_64/bin/`）是 OpenSSL 编译的关键——1.x 认定"安卓上编 OpenSSL 必死"，缺的其实就是这个 make | Google，Apache-2.0 |
+| **CMake 3.31.5 + Ninja** | `:freerdpcore` 的 `externalNativeBuild`；`sdkmanager "cmake;3.31.5"` | Kitware / Ninja 作者，Apache-2.0 / 多许可 |
+| **Git for Windows**（Git Bash） | 跑 `build-android.sh` 的 shell，以及 `perl`、`tar`、`curl`、`sha256sum`、`cygpath`、`make` 之外的路径换算；脚本靠 `MSYS_NO_PATHCONV=1` 关掉它的自动路径转换 | FSF，GPLv2 |
+| **Perl 本体**（Git for Windows 的精简版） | OpenSSL 的 `Configure` 必须有 perl | Perl 作者，Artistic / GPLv1+ |
+| **补进 `third_party/perl-lib/` 的 Perl 核心模块** | 精简 perl 缺的四个系列，缺一个都过不去：`Locale::Maketext` + `Locale::Maketext::Simple`（从 `Perl/perl5` maint-5.42 的 `dist/`、`cpan/` 取）、`ExtUtils::MakeMaker` **7.70**（CPAN）、`Pod::Usage` **2.05**、`Pod::Simple`（`Perl/perl5` 的 `cpan/Pod-Simple`）、`Pod::Text`（CPAN `podlators-v6.1.1`）、`Pod::Escapes` **1.07**。都是纯 Perl，只在构建期用，随 Perl 本体的 Artistic/GPLv1+ 许可 | Larry Wall 与 CPAN 各作者 |
+| **Gradle 发行包**（腾讯云镜像）+ **`foojay-resolver-convention` 1.0.0** | wrapper 取 Gradle 9.8.0；守护进程 JDK 25 由这个插件按 `gradle/gradle-daemon-jvm.properties` 里的 foojay API 自动下载 | Gradle 公司（Apache-2.0）/ Foojay（Adoptium 生态） |
+| **JetBrains 构建的 OpenJDK 25** | Gradle 守护进程实际用的 JDK（`toolchainVendor=JETBRAINS`） | JetBrains，GPLv2 + Classpath Exception |
+| **Node.js** | 只用于 `tools/gen_icons.js` 重出图标，不参与 APK | OpenJS 基金会，MIT |
+| **Android 系统库**（链接期） | `log`、`jnigraphics`、`OpenSLES`、`z`、`m`、`dl`、`atomic`（`freerdpcore/src/main/cpp/CMakeLists.txt:42-51`）——运行期由系统提供，不打包 | Android Open Source Project，Apache-2.0 |
+
+**为什么这些也要写出来**：`build-android.sh` 能不能在新机器上跑通，取决于上面这张表而不是取决于 FreeRDP 本身；1.x 就是卡在"以为是 OpenSSL 的问题，其实缺的是 NDK 里那个 make 和三个 perl 模块"。
+
 
 ### 交互与设计参考
 
@@ -300,15 +317,24 @@
 
 ### 特别感谢
 
-- Devolutions 与 Teleport 维护的 IronRDP，以及所有提交 issue / PR 的贡献者
+- Devolutions 与 Teleport 维护的 IronRDP（1.x 的协议层，2.0 已替换为 FreeRDP）、FreeRDP 与 OpenSSL 的维护者，以及所有提交 issue / PR 的贡献者
 - 上面每个项目的作者与社区：没有这些现成的轮子，这个「工具箱」里要自己写的协议栈会多出几个数量级
 
 如果这里漏掉了某个项目，欢迎指出，我会补上。
 
 ## 环境要求
 
-使用 Android Studio 自带的 JDK / SDK / Gradle，无需单独安装工具链。
-首次打开项目时 Android Studio 会自动提示安装所需 SDK 组件（platform 34、build-tools 34.0.0）。
+使用 Android Studio 自带的 JDK / SDK / Gradle，无需单独安装工具链。首次打开项目时 Android Studio 会提示安装所需组件：
+
+| 组件 | 版本 | 由谁钉住 |
+| --- | --- | --- |
+| Android SDK Platform | **37** | `app/build.gradle:39`、`freerdpcore/build.gradle:14` 的 `compileSdk 37` |
+| NDK | **29.0.13113456** | `freerdpcore/build.gradle:15` 的 `ndkVersion` |
+| CMake + Ninja | **3.31.5** | `sdkmanager "cmake;3.31.5"`（`externalNativeBuild` 用） |
+| build-tools | 36.0.0 | **工程没声明 `buildToolsVersion`**——这是 AGP 9.4.0 自己选的默认值，别当成钉住的版本写进脚本，AGP 升版它会跟着变 |
+| minSdk / targetSdk | 24 / 34 | `app/build.gradle:37-38`；上调 targetSdk 前需回归前台服务、通知权限与 USB 授权 |
+
+命令行构建的 JDK 是两层，别混成一个数：`gradle/gradle-daemon-jvm.properties` 把 **Gradle 守护进程钉成 JDK 25**（`toolchainVendor=JETBRAINS`，缺了由 `settings.gradle:12` 的 `foojay-resolver-convention` 自动下），而 `compileOptions` / `jvmTarget` 是 **17**——那只约束源码与字节码级别。所以 `JAVA_HOME` 指任意 17+ 的 JDK 也能构建，前提是守护进程那侧能拿到 25。
 
 ## 构建
 
@@ -322,14 +348,14 @@ export JAVA_HOME="<AS>/jbr"
 
 或直接用 Android Studio：Build → Build APK(s)。
 
-只有打开内置远程桌面（`local.properties` 里 `rdpNative.enabled=true`）才额外需要：rustup（含 `aarch64-linux-android` / `armv7-linux-androideabi` targets）、Android NDK（本工程实测 `ndk;29.0.13113456`）、以及宿主侧能链接 PE 的 Windows SDK + MSVC 运行库（给依赖树里的 build script 用）。这几样齐了之后 `assembleDebug` 会顺带交叉编译 `rdpcore` 并把 `.so` 放进 `jniLibs`；缺任何一样，构建会在配置阶段直接说明缺什么，而不是让链接器报一堆看不懂的错。
+内置远程桌面现在**随构建一起编译**，所以构建本工程需要：Android NDK（本工程实测 `ndk;29.0.13113456`）与 CMake 3.31.5 + Ninja（`sdkmanager "cmake;3.31.5"`）；先在 Git Bash 里跑一次 `third_party/build-android.sh` 把 OpenSSL + FreeRDP 的静态库编出来（脚本会按固定版本拉源码并校验，需 Git Bash 的 perl 与 NDK 自带的 make）。之后 `assembleDebug` 由 AGP 的 `externalNativeBuild` 把 `freerdpcore/` 编成 `libfreerdp-android.so` 直接打进 APK；缺静态库时 CMake 会直接指出缺哪个 ABI 的哪份库。
 
 说明：
-- `settings.gradle` 已配置阿里云镜像仓库（直连 dl.google.com 会 TLS 握手失败）
-- 工具链：Gradle 9.8.0 + AGP 9.4.0 + compileSdk 37 + build-tools 36.0.0；命令行构建用 JDK 21（`JAVA_HOME` 指向任意 17+ 的 JDK 亦可）
+- **两处镜像要分开看**：Maven 依赖走阿里云（`settings.gradle:19-23`，直连 dl.google.com 会 TLS 握手失败）；**Gradle 发行包本身走腾讯云**（`gradle/wrapper/gradle-wrapper.properties:4` 指 `mirrors.cloud.tencent.com/gradle/gradle-9.8.0-bin.zip`）。换机器时如果 wrapper 卡在下载 Gradle，是后一条而不是前一条
+- 工具链：Gradle 9.8.0 + AGP 9.4.0 + Kotlin/Compose 编译器 2.4.21 + compileSdk 37；build-tools 由 AGP 决定（当前 36.0.0，工程未钉）；JDK 见「环境要求」那张表——守护进程 JDK 25、源码级别 17
 - 首次构建需要 `local.properties` 里的 `sdk.dir` 指向本机 Android SDK 根目录；该文件不入库，由 AS 打开工程时自动生成
 
-产物：`app/build/outputs/apk/debug/工具箱-<版本>.apk`（可直接安装，minSdk 24 / Android 7.0+）。版本号存在根目录 `version.properties`，每次执行 `assemble*` / `install*` / `bundle*` 前自动把 `versionCode` 与 `versionName` 末位 +1，APK 文件名随之带版本；`lint` 等任务不会触发自增。
+产物：`app/build/outputs/apk/debug/工具箱-<版本>.apk`（可直接安装，minSdk 24 / Android 7.0+）。版本号存在根目录 `version.properties`，每次执行 `assemble*` / `install*` / `bundle*` / `package*` 前自动把 `versionCode` 与 `versionName` 末位 +1（判定在 `app/build.gradle:16-28`，是**配置阶段**跑的），APK 文件名随之带版本；`lint` 之类不产包的任务不会触发自增。所以**只想验文档时别跑构建**——它会改掉 `version.properties`，让工作树变脏、日志版本号与已发布条目对不上；真要先跑，就把自增单独提一条。
 
 ## 安装到手机
 
@@ -407,15 +433,19 @@ app/src/main/java/com/decibelmeter/app/
   SmbErrors.kt        # 两个 SMB 库的错误归类到同一套中文提示 + 分块读取助手
   ComposeBaseActivity.kt # Compose 页面基类：语言切换菜单 + options menu 转发
   ToolboxTheme.kt     # Material3 深浅色调色板（跟随系统）
-  RdpActivity.java    # 远程桌面连接簿：增删改、内置连接、端口测试、导出 .rdp、复制链接
-  RdpSessionActivity.java # 远程连接会话页：轮询取帧、缩放/平移、两种指针模式、键盘与功能键
-  RdpNative.java      # librdpcore.so 的 Java 封装：加载失败时自动收起内置入口
+  RdpActivity.java    # 远程桌面连接簿：增删改、内置连接、端口测试、导出 .rdp、复制链接、显示设置（调 SessionResolution 那个共用对话框）
+  RdpSessionActivity.java # 远程桌面启动器：取凭据、解析可达地址、按分辨率设置拼书签，交给 FreeRDP 会话页
   RdpConnection.java  # 一条连接（名称/地址/端口），凭据不在此处
   RdpBook.java        # 连接簿持久化，重复目标会被挡下
   RdpLauncher.java    # freerdp:// 链接构造、TCP 连通测试、.rdp 文件写出与分享
+  RdpProbe.java       # 安全层探测：发 X.224 Connection Request 问服务端支持哪层（只请求 TLS / 再请求 TLS|HYBRID|HYBRID_EX 问两遍），失败码表按 FreeRDP 的 nego.h
+  RdpSettings.java    # 码率档位（省流/均衡/清晰）→ 色深与是否接受有损编码。**当前只有 getter，没有 setter**：`KEY_QUALITY` 全仓没人写，所以永远取默认「均衡」，界面上也没有这一项
+  RecentFiles.kt      # 「最近打开」的持久化（`smb_recent_files`，上限 20 条）——预览页看过什么，主页那条独立入口就列什么
+  SmbExternalPlay.kt  # 「用外部播放器打开」：拼出回环流地址、拉起 VLC 等外部 App，并把 `SmbStreamService` 叫起来让代理活过本页面
+  PlaybackPositions.kt # 每部片子的播放位置（`smb_playback`）：看过 8 秒才记、看到 95% 以上算看完不记
   CredentialStore.java # Android Keystore AES-256/GCM 加密的凭据存储 + 会话内存
   CredentialDialog.java # 用户名/域/密码/记住 的共用对话框（扫描页、共享页、连接簿都用它）
-  LocalFileProvider.java # 自建的只读文件出口（工程不引 AndroidX，故不用 androidx FileProvider）
+  LocalFileProvider.java # 自建的只读文件出口（content URI + 单次授权）。**写它的理由是历史性的**：这个类诞生时工程还没引 AndroidX，而现在 `activity-compose` / `appcompat` 已经把 `androidx.core` 带进来了，换成 `androidx.core.content.FileProvider` 也完全可行——现有实现工作正常、权限面也更窄（只读、单次授权、不开放目录），所以留着没动，别被那句老注释误导
   FileShare.java      # 用其他应用打开 / 分享一个私有文件（content URI + 单次读授权）
   FileUtil.java       # 大小显示、扩展名→MIME、落盘文件名安全化
   BaseActivity.java   # 语言切换菜单基类
@@ -425,10 +455,34 @@ app/src/main/java/com/decibelmeter/app/
   CurveView.java      # 60 秒滚动分贝曲线自定义 View
   SpectrumAnalyzer.java # Hann 窗 + radix-2 FFT + 1/1 倍频程能量聚合（纯 Java，无依赖）
   SpectrumView.java   # 频段柱状图自定义 View（自动量程、峰值记忆、主频段高亮）
-rdpcore/               # 内置远程桌面的原生层（Rust，协议层是 IronRDP）
-  Cargo.toml           # cdylib；默认不参与构建，开关在 local.properties 的 rdpNative.enabled
-  src/lib.rs           # 手写 JNI（槽位下标按 NDK 的 jni.h 数出）+ 会话线程 + 帧缓冲 + 输入编码
-app/src/main/jniLibs/<abi>/librdpcore.so # 上面编出来的产物，已进 .gitignore
+freerdpcore/           # FreeRDP 官方 Android 客户端 core 的裁剪（会话界面 + 控制逻辑 + JNI），共 28 个 java
+  build.gradle         # library 模块；externalNativeBuild 编 libfreerdp-android.so；ndkVersion/compileSdk 在这
+  src/main/cpp/        # 上游 android_*.c（freerdp / event / jni_callback / jni_utils / cliprdr / disp / rail）+ CMakeLists
+  src/main/java/…/presentation/
+    SessionActivity.java  # 会话页：系统栏、信息面板 showSessionInfo()、指针模式切换、动态分辨率
+    SessionView.java      # 画面 + 工具箱自己的单指状态机（触控/触摸板）、缩放与软跟随、远端光标合成
+    ScrollView2D.java     # 滚动容器；画面外的黑边事件由它转给 SessionView.handleExternalTouch()
+    SessionInputManager.java # 输入下发、trackPointer() 记光标坐标、键盘面板调度
+    FloatingToolbar.java  # 工具箱加的那排半透明文字按钮（长按可拖、收起成 ☰ 把手）
+    SessionDialogs.java   # 凭据框、证书框（现在走不到）、实验特性提示
+    SessionResolution.java # 桌面分辨率的唯一存储与对话框（连接簿和会话页共用同一份）
+    SessionViewModel.java / TouchPointerView.java（已永久 GONE）/ ApplicationSettingsActivity.java（未在 manifest 声明，进不去）
+    RailWindowManager.java（RemoteApp）/ PrintProxyActivity、PrintJobMonitor、PrintNotificationHelper（打印，同样未在 manifest 声明且 CHANNEL_PRINT_CLIENT=OFF）/ ExternalDisplayManager.java（零引用）
+  src/main/java/…/application/  # GlobalApp（进程级会话表与断连超时）/ SessionState / ScreenReceiver
+  src/main/java/…/services/     # LibFreeRDP.java：JNI 声明 + 命令行拼装 + bracketIfIpv6 + sendMonitorLayout
+  src/main/java/…/domain/       # BookmarkBase.java（含 ScreenSettings/PerformanceFlags/AdvancedSettings）/ ConnectionReference
+  src/main/java/…/utils/        # KeyboardMapper（硬件键→扫描码）/ Mouse / ClipboardManagerProxy / ClipboardImageProvider（FileProvider）；**GestureDetector.java（617 行）只剩内嵌的 `OnGestureListener` 接口被 DoubleGestureDetector 引用**（:18），检测主体没人实例化；而 **DoubleGestureDetector.java 是活的**——双指手势仍由它派发（`SessionView.java:171` 建、`:442` 喂事件、`:1230` 实现它的 `SessionDoubleGestureListener`），只是单指那套状态机被工具箱自己的实现取代了
+  src/main/java/…/security/     # KeystoreHelper.java（连接簿加密用的，Room/SQLCipher 删了之后**零引用**）
+  src/main/res/        # 会话界面、键盘、对话框、工具栏的布局与资源
+    # 裁掉主页/连接簿之后留下的**零引用资源**仍在：layout/{home, activity_bookmark, activity_about, activity_help, activity_shortcuts, bookmark_list_item}.xml、menu/{home_menu, bookmark_menu, bookmark_context_menu}.xml、xml/{advanced, gateway, screen, performance_flags, debug}_settings.xml；settings_app_*.xml 只被那个进不去的设置页引用。想瘦 APK 先从这些下手，删之前记得 `R.xml.attrs` 对应的 `IntEditTextPreference` 类也已经不在了
+third_party/           # 交叉编译 Native 依赖（见 third_party/README.md）
+  build-android.sh     # OpenSSL + FreeRDP → prebuilt/<abi> 静态库（源码按需拉取、哈希校验）
+  perl-lib/            # 补齐 Git for Windows 精简 perl 缺的核心模块（仅构建期）——**入库**，`PERL5LIB` 指的就是它，缺了脚本直接退出
+  ExtUtils-MakeMaker-7.70/  # 上面那个模块的 CPAN 原始包，内容已整理进 perl-lib，**不入库**（本机留着当出处对照）
+  perl5lib/            # 空目录（早期试 PERL5LIB 时留下的），git 本来就不跟踪空目录
+  openssl-3.5.9.tar.gz.sha256 # 校验值，与脚本里的 `OPENSSL_SHA256` 同一串。**它是入库的**：`/third_party/openssl-*/` 带结尾斜杠、只匹配目录，盖不住这个文件；而校验值本身对复现构建有用（源码包 `openssl-3.5.9.tar.gz` 由 `/third_party/*.tar.gz` 排除）
+  README.md            # 版本、来源、许可、踩坑记录
+  freerdp/、openssl-3.5.9/、build/、prebuilt/<abi>/  # 源码与编译产物，一律不入库，按脚本重取重编
 assets/icon_source_raw.png # 图标原始设计稿（2048px，右下角带生成器水印）
 assets/icon_master.png     # 由设计稿紧裁出的 512px 母图，是 gen_icons.js 的输入
 tools/gen_icons.js         # 图标生成脚本（纯 Node，零依赖）：母图 → 各密度方形/圆形图标 + 自适应前景 + 单色层
@@ -436,6 +490,12 @@ tools/make_icon_from_png.ps1 # 历史脚本（PowerShell + System.Drawing），�
 tools/analyze_icon.ps1       # 辅助脚本：打印设计稿非白像素包围盒，用于确认水印与图形本体不重叠
 tools/make_icon.js           # 早期纯 Node 手绘图标脚本（另一套图形），当前资源不由它生成
 .gitignore                 # 入库排除规则，见「仓库与提交规范」
+.gitattributes             # 换行与二进制文件属性（源码 lf、png/jar/so 标 binary），跨 Windows/Git Bash 提交保持一致
+version.properties         # versionCode + versionName，构建时自增（见「构建」），入库
+gradle/wrapper/            # wrapper jar（入库）+ gradle-wrapper.properties（Gradle 9.8.0，腾讯云镜像）
+gradle/gradle-daemon-jvm.properties # 把 Gradle 守护进程钉成 JDK 25（JetBrains 构建），由 `updateDaemonJvm` 生成
+build-shim/                # 1.x 自写 RDP shim 时代的 native 产物（`librdpcore.so` + CMakeCache/ninja，约 16 MB）——**不入库**，源码线已删，只留本机备查
+_verify/                   # 真机截图与临时校验产物（本次把根目录的 `g1.png`/`g2.png` 与两份从别处落下来的 WSL 下载页 html 移了进来）——不入库
 CHANGELOG.md               # 每次推送的变更说明
 ```
 
@@ -461,21 +521,44 @@ node tools/gen_icons.js
 
 ## 注意事项
 
-- **权限只有三项**：`RECORD_AUDIO`（分贝仪）、`INTERNET`（域名解析、局域网扫描、共享访问）、`ACCESS_NETWORK_STATE`（局域网扫描读本机链路地址）。三项都是安装即授予的普通权限，运行期只会弹一次麦克风授权；固件下载不需要存储权限，共享文件的读与写也不需要——选文件走系统文件选择器（SAF），下载落在应用私有目录。
+- **权限：12 项，其中 10 项安装即授予、只有 4 项会在运行期弹框**（`app/src/main/AndroidManifest.xml:4-27`，另有 `freerdpcore/src/main/AndroidManifest.xml` 带入的两项）：
+  - **安装即授予的普通权限**：`RECORD_AUDIO`、`INTERNET`（域名解析、局域网扫描、共享访问）、`ACCESS_NETWORK_STATE`（读本机链路地址）、`CHANGE_WIFI_MULTICAST_STATE`（SSDP 要收 UPnP 组播响应）、`FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_DATA_SYNC`（串流与传输的前台服务；`dataSync` 类型是 targetSdk 34 起的硬要求）、`MODIFY_AUDIO_SETTINGS` 与 `ACCESS_WIFI_STATE`（freerdpcore 带入）
+  - **运行期会弹框的**：`RECORD_AUDIO` 的首次麦克风授权、`POST_NOTIFICATIONS`（API 33 起，首次发起传输时申请，`SmbBrowseActivity.kt:1757-1761`——没有它前台服务的进度通知发不出去）、`READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO` / `READ_MEDIA_VISUAL_USER_SELECTED`（只在「备份相册到这里」时用，`SmbBackup.kt:32`；`VISUAL_USER_SELECTED` 对应 Android 14 的「只选部分照片」，不声明就只能全给或全不给）、`READ_EXTERNAL_STORAGE`（带 `maxSdkVersion="32"`，只给 ≤Android 12 的老系统用，新系统上不多问一个没用的框）
+  - **不需要存储权限**：共享文件的读与写都不申请传统存储权限——选文件走系统文件选择器（SAF），下载见下一条
+- **各处写死的上限**（改起来都是一个数字的事，但每个都有代价，所以先讲清为什么是这个值）：传输队列完成/失败的任务最多留 **12** 条（`TransferHub.MAX_JOBS`，同时只跑 2 条），续传存档按 **1.5 s** 节流；「最近打开」**20** 条（`RecentFiles.LIMIT`）；图片缓存缩略图 **8 MB**、原图 **64 MB**、并发 **4**（`SmbImages.THUMB_CAP`/`FULL_CAP`/`MAX_PARALLEL`）；ZIP 中央目录最多读 **24 MB**、尾部窗口 **66 KB**（再多就该先下载整包了）；SSDP 描述最多收 **8** 份、单份 **64 KB**；扫描 **48** 线程、SSDP 最多等 **4.5 s**、目标上限 **1024**；视频续播看过 **8 s** 才记、看到 **95%** 以上算看完不记；递归搜索三道闸 **400 目录 / 20000 条目 / 50 命中**；最近连接主机 **8** 台、文件夹收藏 **24** 个（`SmbSettings.RECENT_LIMIT`/`BOOKMARK_LIMIT`）；回环代理每块 **256 KB**、流服务空闲 **5 分钟**自动收摊；域名试连每条 **1.5 s**、最多 **4** 条
 - **局域网扫描是真实网络行为**：一轮扫描会向网段内 253 个地址各发若干 TCP SYN，外加一次 UDP 137 广播。家里和公司内网无所谓，但公共 WiFi、别人家的网络或严格按规章管理的内网会把这种流量判成扫描行为并告警——不确定就别扫。
 - **共享页的写操作是真的写**：删除直接在共享上生效、撤不回来（有二次确认，文案里写明目录会连带内容一起没了）；上传遇到同名文件自动改成 `照片 (2).jpg`，不覆盖远端已有文件。
-- **下载的文件在应用私有目录**（`Android/data/<包名>/files/Download`），卸载即消失；要留在手机上请用「另存为…」写到公共位置。给别的 App 打开时通过自建的只读 `LocalFileProvider` 单次授权，不开放任何目录。
+- **下载落点分两条路**（`DownloadStore.kt:12-21,77,96-105`）：**Android 10 及以上默认写公共 `下载/工具箱`**——走 MediaStore、`IS_PENDING` 提交，不需要任何存储权限，文件管理器/相册/播放器直接看得见，**卸载应用也不会带走**；Android 9 及以下退回应用私有目录（`Android/data/<包名>/files/Download`），那条路卸载即消失。要精确控制落点用「另存为…」走 SAF 直接写到目标位置。给别的 App 打开时通过自建的只读 `LocalFileProvider` 单次授权，不开放任何目录
 - **局域网凭据只加密存本机**：勾「记住密码」时用 Android Keystore 的 AES-256/GCM 加密后写 SharedPreferences，密钥不可导出，落盘只有 IV + 密文与认证标签。工程开了 `allowBackup`，SharedPreferences 会随备份走、Keystore 密钥不会，所以换机恢复后旧条目必然解不开——按「没存过」处理，重新登录一次即可。不勾就只活在进程内存里，页面间传递也不经过 Intent。`.rdp` 文件与 `freerdp://` 链接都不带密码（前者的 `password 51:b:` 只是可逆编码，等于明文）。
 - **SMB1 默认关闭**：只在「兼容设置」里为老设备临时打开，界面上也写明了它是明文、签名不强制。老 NAS 谈不拢版本时的报错与「权限不足」长得一样，所以协议错误单独归了一类文案。
-- **数据只存本机**：域名列表、校准偏移、ISP 参数、收藏设备、连接簿全部写 `SharedPreferences`，不联网上传、不含任何预置的第三方域名或 IP；卸载即清除。
+- **数据只存本机**：全部落 `SharedPreferences`，不联网上传、不含任何预置的第三方域名或 IP。一份文件存一件事，好排查也好单独清掉——`dns`（域名列表）、`settings`（分贝仪校准偏移）、`isp`（固件下载参数与 `recentFirmware`、`chipExpanded`）、`lan_devices`（收藏与手动添加）、`lan_credentials`（加密后的局域网凭据，见下一条）、`rdp_connections`（连接簿）、`rdp_display`（码率档位，现在只有读、没有写入口）、`smb_settings`（共享页的 14 个键）、`smb_unfinished`（下到一半的续传存档）、`smb_recent_files`（最近打开）、`smb_playback`（视频播放位置）、`freerdp_security_prefs`（freerdpcore 上游带的密钥库缓存）。卸载即清除（`smb_unfinished` 里的半截文件与 MediaStore 条目一起没）
 - **域名解析会发起真实 DNS 查询**：`InetAddress.getAllByName` 走系统解析器，你输入的域名会被发往当前网络的 DNS 服务器。
 - **分贝精度**：手机麦克风无声学标定，绝对精度约 ±3–10 dB，详见「测量精度说明」；本应用是参考级工具，不能替代声级计。
 - **固件下载有变砖风险**：烧录会擦除片内 Flash，选项字节改写可能导致读保护、调试口关闭等后果；操作前先用「读回」备份原片内容，并确保供电稳定、串口线共地。BOOT0/NRST 自动时序依赖接线正确，接错只是进不去 Bootloader，但误改选项字节需要额外手段恢复。
 - **USB 功能只能真机验证**：Android 模拟器没有 USB 宿主，`UsbManager`/OTG 相关路径（固件下载）必须在带 OTG 的实机上测；CH340/CH341、CP210x、FTDI 由 `usb-serial-for-android` 驱动。
-- **内置远程桌面默认不构建，且体积不小**：开关在本机 `local.properties` 的 `rdpNative.enabled`（仓库里不放），没装 Rust/NDK/Windows SDK 的人编译不受影响，界面上那个「远程连接」入口会自动收起。打开后 `librdpcore.so` 是 arm64 约 13.9 MB、armv7 约 9.65 MB（IronRDP + rustls + aws-lc 的代价）。
-- **内置通道已连上真机验证，但功能面还窄**：触控/鼠标两种指针模式、锁存修饰键的功能键面板、Ctrl+Alt+Del、分辨率与缩放都实测有效（Windows 11 桌面上开过开始菜单、打出过 notepad、用锁存的 Win 打开过资源管理器、唤出过安全界面）；此外远端光标是自绘的独立图层（形状随服务端下发变化）；还没有的是位图缓存与 RemoteFX、剪贴板同步，且原生侧只有一份全局会话状态（同时只能连一台）。
+- **体积不小**：`libfreerdp-android.so` 是 arm64 约 9.3 MB、armv7 约 7.0 MB（APK 内的压缩前大小；FreeRDP + OpenSSL 静态链入、已剥符号），debug APK 约 40 MB。
+- **内置通道已连上真机验证，但功能面还窄**：**2.0 实测有效的是**——轻点、点一下落在光标处、按住 900 ms 松弹出桌面右键菜单、单指滑动滚信息流（触控模式）与推光标（鼠标模式）、**硬件键盘**在 Windows 搜索框打出文字、重开会话保留上次选的指针模式、会话内改分辨率当场重排、画面四周黑边也能推光标（Windows 11 桌面上开过开始菜单）。**别把 1.x 的验证当成这一版的**：软键盘与「锁存修饰键」功能键面板、Ctrl+Alt+Del 那几条是 1.x 自绘会话页的实测结论，2.0 这边扩展键面板现在没有入口（见「远程桌面 · 内置通道」一节），工具栏上也没有 Ctrl+Alt+Del 那一档。双指捏合/滚动/右键与三指中键到现在仍未机器验证（注不进多点触控）。位图缓存/RemoteFX/GFX 与剪贴板同步现在由 FreeRDP 客户端自己开（`/rfx`（条件）`/gfx /clipboard`），不再是没做的项。已知边界：远端光标由 `SessionView` 合成在画面内，形状随服务端下发变化，但**位置只能按我们发出的事件推算**——FreeRDP 把 `colorPointerFlag` 写死为 TRUE，服务端不回传光标坐标，所以远端自己移动光标（比如动画、程序设置光标位置）时画面里的光标不会跟着走；另外原生侧只有一份全局会话状态（同时只能连一台）。
 - **强制竖屏**：所有 Activity 都固定 portrait，避免旋转导致采集线程与 USB 会话重建，因此 lint 的 `LockedOrientationActivity` 提示属刻意取舍；Android 16 起该属性在多数场景会被忽略，届时需要改成真正适配横竖屏。两个例外都不锁方向并声明 `configChanges`：内置远程桌面会话页（原生会话线程活在进程里，Activity 重建会让画面与会话对不上）和共享文件预览页（视频横屏才有意义，重建会拆掉播放器与本机回环服务，看起来就是「转一下方向就重播」）。
 - **targetSdk 仍是 34**：上调前需回归前台服务、通知权限与 USB 授权行为。
+
+### 已知问题（本轮逐条对着代码核实过，**只记录、未修改**）
+
+这一版是文档轮，代码逻辑一行没动。下面是核对 README 时顺带查出来的真问题，每条都写清现象、位置和该怎么改，下一轮按这个清单收尾：
+
+1. **取消掉的排队任务照样会跑完**（高）——`TransferHub.start()` 里那个 `job.cancel` 只挡在 `QUEUED→RUNNING` 的状态跃迁上（`TransferHub.kt:237`），任务体在 `:267` 无条件执行。所以「停止全部」一次能取消 10 条排队的任务，而它们**全都照样传完**；更糟的是 `:244` 开工前先落的那条续传存档、以及 `:292` 结束时又 `persistResume(true)` 一次，会让用户已经「放弃」掉的下载在下次启动时又冒出来。改法：`pool.execute { }` 的第一行就 `if (job.cancel.get()) { main.post { …CANCELED…; unpin(…) }; return@execute }`
+2. **`pin()` 登录失败也给连接计数 +1**（高）——`TransferHub.kt:304-310` 用 `runCatching { SmbHub.acquire(...) }`，抛异常时照样 `hostPins[host] = refs + 1`；任务结束时 `unpin()`（:312-320）却会 `SmbHub.release(host)`，于是**把浏览页自己那份引用扣穿、连带关掉正在用的连接**。另外 `pin` 是在 `submit()` 里从主线程调的，而 `SmbHub.kt:75` 的注释明写 acquire 必须在工作线程（真机上在这里吃过 `NetworkOnMainThreadException`）。改法：只有 acquire 成功才记账，失败要把错误报给用户而不是 `runCatching` 咽掉
+3. **Android 9 及以下「复制路径」是错的、「删除」必失败**（中）——`SmbDownloadsActivity.kt:321` 与 `:343-345` 按公共 `Download/工具箱` 拼 `File` 路径，可那两个分支的下载实际落在 `getExternalFilesDir(DIRECTORY_DOWNLOADS)`（`:145` 列清单时用的就是私有目录，`DownloadStore.kt:165` 也证实）。列表能列出来、却删不掉，就是这两处路径不一致
+4. **外部播放器播的是上一个文件**（中）——`SmbStreamService.kt:117-122`：只要代理还活着就直接回 `running.url`，**完全没比 `EXTRA_HOST`/`EXTRA_PATH`**。空闲窗是 5 分钟（`:45`），所以「先用 VLC 播 a.mkv，退回来点 b.mkv」会拿到 a 的地址继续播。改法：服务里留住 host/path，两者不同就重启代理
+5. **「适配屏幕分辨率」在转屏时不生效**（中）——判断条件恒为假，见「远程桌面 · 内置通道」那条「未验证/边界」里的定位（`SessionActivity.java:481-489` + `RdpSessionActivity.java:75`）
+6. **上传只有 64 KB 串行**（中）——`SmbClient.java:325` 的注释写着「写侧不能传大缓冲…得自己切块分发，留待以后」；读侧已经把套接字缓冲抬到 1 MB（下载 49.6 MB/s），写侧还是 17.4 MB/s。要再快只能并行写：顺序流切块、多句柄按偏移写
+7. **`IspActivity` 在 main thread 读写整片文件**（中）——`onActivityResult`（:598）→ `loadFirmware`（:614）→ `readAll`（:864）直接把最大 8 MB 的固件（`:640` 才做上限判断）读进内存，之后 HEX 解析与建镜像也都在主线程；`saveFlashImage` 把读回的整片 Flash 走 `toIntelHex()`（体积膨胀约 4 倍）写出去同样是主线程。这个类本来就有一个 `runTask()` 调度器（`:905-948`）和一个 `executor`（`:114`），搬过去即可
+8. **一次点几十张照片时主线程跑 ContentProvider 事务**（中）——`SmbBrowseActivity.kt:1387` 在点击回调里 `DownloadSink.create()`，里面是 insert + 两次 query（`DownloadStore.kt:106-162`）；批量下载是循环调用（`:1232-1234`），30 张照片就是约 90 次事务。`doneText()`（`:1412` → `DownloadStore.kt:247`）每完成一条还要在主线程问一次大小
+9. **`LanHttp` 对所有主机接受任意证书**（中）——`:247-266` 的 `X509TrustManager` 两个 `check*Trusted` 都是空实现，也不做主机名校验。给自签名的路由器/摄像头门户是刻意的，但它现在对扫描到的**任意**地址都这样。收窄到 RFC1918 目标、并在界面上写明「未验证的 TLS」就够了
+10. **凭据每次都过一次 Keystore**（低）——`CredentialStore.java:175-191` 每次 `get()` 都 `KeyStore.load(null)` + `getEntry` + AES-GCM 解密，`SESSION` 缓存从来没填过；调用点全在主线程（`LanScanActivity` 四处、`RdpActivity` 三处、`SmbBrowseActivity.kt:672`）
+11. **JPEG 解码跑在组合线程上**（低）——`SmbBrowseScreen.kt:749` 在 `produceState`（Main）里调 `SmbVideoThumbs.request()`，而它 `:53-61` 命中磁盘缓存时同步 `BitmapFactory.decodeFile`（`:127`）。挪到 `Dispatchers.IO` 或走现成的 `workers`
+12. **两处小的死路**：`SmbPdfThumbs.clear()`（`:55`）没有任何调用点，所以菜单里的「清空缓存」清不掉 PDF 缩略图那份进程内 `LruCache`（磁盘那份归 `DownloadStore`/`cacheDir` 管，能清掉）；`SmbVideoThumbs.peek()`（`:40`）与 `has()`（`:82`）也没有调用点
+13. **一句过时的注释**：`IspActivity.java:584` 写「本工程刻意不引入 AndroidX」——2.0 的 `freerdpcore` 与 Compose 都建立在 AndroidX 上，这话对本页还成立、对本工程已经不成立了，改注释就行
+14. **1.x 会话页遗留的字符串资源还没清**：`app/src/main/res/values/strings.xml` 的 710 个键里 **89 个没有任何引用**，绝大多数是 1.x 自绘会话页的词汇（`rdp_quality_*`、`rdp_detail_*`、`rdp_mode_*`、`rdp_scale_*`、`rdp_keys_cad` 等）；freerdpcore 自己那份 `strings.xml` 里另有 27 条无引用，9 个 locale 各缺 106 条译文。不影响功能，但会误导后来的读者以为还有这些开关
 
 ## 仓库与提交规范
 
@@ -485,11 +568,19 @@ node tools/gen_icons.js
 
 | 类别 | 处理 |
 | --- | --- |
-| 编译产物 | 排除：`build/`、`.gradle/`、`*.apk`、`*.aab`、`*.dex`、`lint-results*`、`.cxx/`、`captures/` |
-| IDE 与工具元数据 | 排除：`.idea/`、`*.iml`、`local.properties`（含本机 SDK 绝对路径）、`.DS_Store`、`Thumbs.db` |
-| 本机调试遗留 | 排除：`Python/`（AS Python 插件在本目录落的解释器缓存，100MB+）、`_verify/`（真机截图）、`*.log` |
-| 签名与凭据 | 一律排除：`*.jks`、`*.keystore`、`*.p12`、`*.pem`、`.env`、`secrets*`、`*token*`；密码/令牌只允许通过环境变量临时传入，不写入任何入库文件 |
-| 构建必需 | 保留：`gradle/wrapper/gradle-wrapper.jar`、`gradlew`、`gradlew.bat`、`settings.gradle` 里的公共镜像地址 |
+| 编译产物 | 排除：`build/`、`.gradle/`、`.cxx/`、`/app/.cxx/`（AGP 的 native 中间目录在 `build/` 之外还单独落一份）、`.externalNativeBuild/`、`captures/`、`release/`、`debug/`、`*.apk`、`*.aab`、`*.ap_`、`*.dex`、`*.class`、`lint-results*` |
+| IDE 与工具元数据 | 排除：`.idea/`、`*.iml`、`.kotlin/`（Kotlin 会话缓存）、`local.properties`（含本机 SDK 绝对路径）、`.DS_Store`、`Thumbs.db`、`desktop.ini`、`*.swp`、`*~` |
+| 本机调试遗留 | 排除：`/Python/`（AS Python 插件在本目录落的解释器缓存，100MB+）、`/_verify/`（真机截图与临时校验产物，含本次移入的 `g1.png`/`g2.png`）、`*.log` |
+| Native 依赖 | 排除：`/third_party/freerdp/`、`/third_party/openssl-*/`（**带结尾斜杠，只匹配那个源码目录**；源码包 `openssl-3.5.9.tar.gz` 是靠 `/third_party/*.tar.gz` 排除的，同目录的 `.sha256` 因为不是目录、也不匹配 `*.tar.gz`，所以**会入库**——那只是一行校验值，对复现有用）、`/third_party/build/`、`/third_party/prebuilt/`、`/third_party/*.tar.gz`、`/third_party/ExtUtils-MakeMaker-7.70/`（CPAN 原始包，内容已整理进 perl-lib）——按 `third_party/README.md` 重编即可 |
+| Native 依赖（**要入库**） | `/third_party/perl-lib/`：构建期补齐的那批纯 Perl 模块，`build-android.sh:47` 的 `PERL5LIB` 指的就是它、`:49` 还会检查 `perl-lib/Pod` 在不在，缺了脚本直接退出。所以它是"构建必需"，不是本机缓存 |
+| 1.x 遗留产物 | 排除：`/build-shim/`（自写 RDP shim 时代的 `librdpcore.so` + `CMakeCache.txt`/`build.ninja`，约 16 MB；源码线已删，产物只留本机） |
+| 签名与凭据 | 一律排除：`*.jks`、`*.keystore`、`*.p12`、`*.pfx`、`*.pem`、`.env`、`secrets*`、`*token*`、`*.rmi`、`passwords*`；密码/令牌只允许通过环境变量临时传入，不写入任何入库文件 |
+| 构建必需 | 保留：`gradle/wrapper/gradle-wrapper.jar`、`gradlew`、`gradlew.bat`、`gradle/gradle-daemon-jvm.properties`、`.gitattributes`、`version.properties`、`settings.gradle` 里的公共镜像地址 |
+
+**入库前必看一眼的东西**（历史教训）：真实内网地址、设备真实 MAC、个人机器名、自己的 DDNS 域名与公网 IPv6 前缀都属于隐私——文档里一律用占位写法：示例地址 `192.168.1.100` / `192.168.1.10`、示例机器名 `PC-HOME` / `PC-OFFICE` / `NAS-HOME`、MAC 掩码 `C8:BF:4C:XX:XX:XX`、DDNS 域名写成「自己的 dynv6 域名」。这套约定由 1.x 提交 `9b48e84` 定下，2.0 的 RDP 验证记录曾把真实地址与域名原值写回去，本次已清掉。**写「清理说明」时也别把原值抄一遍**——记录清掉了什么，不需要把被清掉的东西再列出来；本次第一稿就踩了这个，脱敏条目自己带着原值，重写提交时才拦住。
+**改完文档再建历史、再提交**：脱敏必须放在第一个 commit 之前，否则真实值会永久留在已推送的历史里，补一条「清理」提交是撤不干净的。已经提交但**还没推送**时发现漏抄，就重写那个未推送的提交（`--amend` 或 `reset --soft` 后重新提交都行），不要往后追加修正提交。核查要查**已提交的对象**而不只工作树：`git show <commit>:CHANGELOG.md | grep -cE '<被查字面量>'`。
+
+**换行符（`.gitattributes`）**：`* text=auto` 之外还逐类钉了 `eol=lf`——`*.java`、`*.kt`/`*.kts`、`*.xml`、`*.gradle`、`*.properties`、`*.md`、`*.c`/`*.h`、`*.js`、`*.sha256`、`*.sh`、`*.pm`/`*.pod`/`*.pl`、`gradlew`、`.gitignore`，`*.bat`/`*.ps1` 钉 `eol=crlf`。**为什么 `*.sh` 必须钉死**：本机 `core.autocrlf=true`（Git for Windows 装机默认），只靠 `text=auto` 的话库内是 LF、**检出到工作树会变成 CRLF**，新克隆那台机器上 `./third_party/build-android.sh` 会因行尾的 `\r` 报 `bad interpreter`，`perl-lib` 里那些 `.pm` 也会被带进脏参数。补齐之前的 `.gitattributes` 只钉了 `gradlew`，没钉 `*.sh` 与 Kotlin/C 源文件。复核用 `git ls-files --eol <文件>`，看 `i/lf` 与 `attr/... eol=lf` 两列
 
 **提交信息**：中文，一行主题 + 空行 + 要点列表。主题格式 `范围: 做了什么`，范围用功能名或模块名，例如：
 

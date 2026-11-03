@@ -2,6 +2,487 @@
 
 每次推送在顶部追加一条，分类用「新增 / 修改 / 修复 / 移除」。提交信息主题与本文件对应条目保持一致。
 
+## 文档修订 — 2026-11-03（不产出 APK，`version.properties` 保持 2.0.71）
+
+把 README 逐节拉到代码上核对了一遍：改掉 10 余处与实现不符的表述、填上一整节空白的致谢、清掉 1.x 曾经专门清理过的真实地址，并顺手让 `.gitignore` 真正对上 README 承诺的入库范围。**代码逻辑一行没改**——核文档时查出来的 14 条真问题全部如实写进 README 新增的「已知问题」小节，等下一轮按清单收尾。
+
+### 修复（隐私：这一条必须排在最前）
+
+- 2.0 新写的 RDP 验证记录把**那台测试机的真实内网地址**（`192.168.5.x` 那一段里的一个具体主机）写回来了（CHANGELOG 16 处 + README 1 处），自己的 **dynv6 DDNS 域名**（字面含用户名，比内网地址更该避讳）与公网 IPv6 的 `/64` 前缀也进了 CHANGELOG 的验证段。1.x 提交 `9b48e84` 专门清过这类信息并定下占位写法（`192.168.1.100` / `PC-HOME` / `NAS-HOME` / `C8:BF:4C:XX:XX:XX`），本次照它改齐。**本条目本身也不复述原始值**——记录"清掉了什么"不需要把原值再抄一遍
+- **顺序上的讲究**：先改文档、后建 git 历史，且只用一个 commit。脱敏若放在第二个提交里，真实地址会永久留在已推送的历史中，补一条"清理"提交撤不干净
+
+### 修复（README 与代码不符）
+
+- **权限清单**：原文写「权限只有三项」，实际 `AndroidManifest.xml:4-27` 有 10 项（`CHANGE_WIFI_MULTICAST_STATE`、`FOREGROUND_SERVICE(_DATA_SYNC)`、`POST_NOTIFICATIONS`、`READ_MEDIA_*`、`READ_EXTERNAL_STORAGE maxSdk=32`），freerdpcore 再带入 `MODIFY_AUDIO_SETTINGS` 与 `ACCESS_WIFI_STATE`；「运行期只弹一次麦克风」也不对——通知权限和相册备份的媒体权限都会弹。同一节里「下载的文件在应用私有目录、卸载即消失」与本文件另一处「下载默认落在公共 下载/工具箱」自相矛盾，按 `DownloadStore.kt:12-21,77,96-105` 改齐：**Android 10+ 走 MediaStore 写公共目录、卸载不带走；≤9 才退回私有目录**
+- **概述三处**：主页是 **5 个**可用入口不是四类（多出「已下载 / 最近打开」）；用 Compose 的是**四页**不是两页（浏览、预览、解压、已下载）；`freerdpcore` 不是「默认不参与构建」，`settings.gradle` 无条件 `include ':freerdpcore'`，缺静态库时 CMake 直接报错
+- **环境与构建**：「platform 34、build-tools 34.0.0」与同文档「compileSdk 37 + build-tools 36.0.0」打架——按 `app/build.gradle:39`、`freerdpcore/build.gradle:14-15` 写成 Platform 37 / NDK 29.0.13113456 / CMake 3.31.5，并说明**工程没声明 `buildToolsVersion`**，36.0.0 是 AGP 9.4.0 的默认值、不是钉住的。「命令行构建用 JDK 21」也不对：`gradle/gradle-daemon-jvm.properties` 把守护进程钉成 **JDK 25（JetBrains 构建）**，`compileOptions 17` 只管源码级别。镜像也分两处：Maven 走阿里云、**Gradle 发行包走腾讯云**（`gradle-wrapper.properties:4`）
+- **RDP 参数清单按 `LibFreeRDP` 重写**：补上实际每次都发的 `/gdi:sw`、`/scale:`、`/kbd:unicode:on`、`/log-level:`；`/rfx`、`/gfx`、`/sound` 是条件项（各带一条 `/network:auto`）；`/sec:`、`/tls:`、`/cert-name:`、`/client-hostname:`、`/drive:`、`/printer:`、`/microphone`、`/dvc:rdpecam` **在工具箱里永远发不出去**——对应的开关没人能打开
+- **「1.x 那套自绘状态行、连接详情对话框在这版被重新接回来了」是半错**：`CHANGELOG:368` 自己就写着会话屏不再有这个；freerdpcore 里 grep 不到状态行，只有 `RdpActivity.java:200,219` 与 `LanScanActivity.java:485` 的**连接簿/扫描页**状态行，会话页那个信息面板是 `SessionActivity.showSessionInfo()`（:847-931）。接回来的只有输入手感那一层（指针加速、触摸板推光标、软跟随）
+- **把 1.x 的实测当成 2.0 的一条**：「轻点/双击/长按拖动、软键盘与锁存修饰键面板、Ctrl+Alt+Del 都实测有效」是 1.x 自绘会话页的结论；2.0 已按本轮真机记录改写，并明确标出扩展键面板现在没入口、双指/三指手势仍未验证
+- **域名解析**长按菜单是 **4 项**，第一项是「远程连接」（`DnsActivity.java:236-270`），原文只写了三项
+- **许可证写错的一处**：`com.android.tools:desugar_jdk_libs:2.1.5` 的 POM 里 `<licenses>` 声明的是 **GPLv2 + Classpath Exception**，原文写成「Android SDK」。这张表的许可现在逐个读的是 `~/.gradle/caches/.../*.pom`，不是照抄旧值
+
+### 新增
+
+- **「原生层依赖」这一节此前是空的**（`### 原生层依赖` 与下一节之间没有任何内容），填上：NDK 29（含它自带的 `make.exe`/`yasm.exe`——1.x 认定"安卓上编 OpenSSL 必死"，缺的其实就是这个 make）、CMake 3.31.5 + Ninja、Git for Windows 的 perl/tar/curl/sha256sum/cygpath、补进 `perl-lib` 的六个模块（`Locale::Maketext(+Simple)`、`ExtUtils::MakeMaker 7.70`、`Pod::Usage 2.05`、`Pod::Simple`、`Pod::Text(podlators 6.1.1)`、`Pod::Escapes 1.07`）、foojay-resolver 1.0.0、JetBrains JDK 25、Node（`gen_icons.js`）、以及链接期的 `log jnigraphics OpenSLES z m dl atomic`（`CMakeLists.txt:42-51`）
+- **致谢里 FreeRDP 被列了两次**，而第二条（"没有链接它的代码，RDPSND 协商顺序、滚轮与指针事件语义以它为对照"）描述的其实是 **1.x 的 IronRDP**——改成 IronRDP 条目并说明 2.0 已不再链接它，另立一条 aFreeRDP。依赖表补齐 `freerdpcore/build.gradle:41-45` 的五个 AndroidX（appcompat/preference/recyclerview/lifecycle-viewmodel/livedata）与 `slf4j-api`、`bcprov-jdk18on`、`net.engio:mbassador 1.3.2`、`com.hierynomus:asn-one 0.6.0`、`kotlin-stdlib` 这些传递依赖
+- **README 新增「已知问题（只记录、未修改）」小节**，14 条按严重度排。其中三条是会咬人的：① `TransferHub.kt:237` 的取消只挡状态跃迁、任务体 `:267` 照跑，所以「停止全部」之后排队的下载**全都照样传完**，还会在 `:244/:292` 给已放弃的任务补写续传存档；② `TransferHub.kt:304-310` 的 `pin()` 用 `runCatching` 包住 `SmbHub.acquire`，失败也计数，之后 `unpin` 会把**浏览页正在用的连接扣穿关掉**；③ `SmbStreamService.kt:117-122` 只要代理活着就回旧 URL、不比 host/path，5 分钟空闲窗内换文件会**播成上一个**
+- **两处代码死路写进文档**：`ApplicationSettingsActivity` 没在任何 manifest 声明（freerdpcore 那份只有 `SessionActivity` + `ClipboardImageProvider`），而 `SessionDialogs.java:119→230` 会 `startActivity` 它——走到「实验特性」拦截（`SessionActivity.java:1158`）就是一个 `ActivityNotFoundException`；连带 `clientName / hideStatusBar / keepScreenOn / swapMouseButtons / invertScrolling / useBackAsAltf4 / nightMode / disconnectTimeout / experimental.*` 这些**被读却没人能改**的偏好。`/cert:ignore` 在 `LibFreeRDP.java:543` **硬编码**，于是 `OnVerifiyCertificateEx`/`OnVerifyChangedCertificateEx`（`SessionActivity:1118-1134`）与 `SessionDialogs.verifyCertificate`（:180,202）整条证书告警链走不到——如实写成「证书校验被无条件忽略」，而不是像原文那样完全不提这件事
+- **「适配屏幕分辨率」转屏不生效的真正原因**：不是"重建会话要回到应用侧"，是判断条件恒为假——`SessionActivity.java:481-489` 只看 `isFitScreen()`，而启动器一律 `setResolution("custom", 宽, 高)`（`RdpSessionActivity.java:75`），这个标志永远不会是 true。两条修法都不必重连（MS-RDPEDISP 当场生效已实测）
+- **扩展键面板（Fn/小键盘/方向键）没有入口**：`toggleExtendedKeyboard()` 唯一调用点是 `SessionInputManager:513` 的 `onTouchPointerToggleExtKeyboard()`，而那个 `TouchPointerView` 在 `SessionActivity.java:307` 被永久 `GONE`
+- 补齐代码里有、文档零提及的入口与数值：主页「已下载」菜单的**「清空最近打开」**、分贝仪的**「刷新设备」**（`MainActivity.java:89-94`）、局域网条目菜单的「设置登录账号 / 删除已存凭据 / 从设备列表移除」；`SmbSettings` 的 `cache_mb` **有 setter 但没有 UI 调用点**所以改不了；一节的「各处写死的上限」（`MAX_JOBS=12`、`RecentFiles=20`、`SmbImages` 8/64 MB 与 4 并行、`SmbZip` 24 MB/66 KB、SSDP 8 条/64 KB、扫描 48 线程、续播 8 s/95%、搜索 400/20000/50、回环 256 KB 与 5 分钟、试连 4 条 ×1.5 s）
+- **目录结构**补上 `RdpProbe.java`、`RdpSettings.java`、`RecentFiles.kt`、`SmbExternalPlay.kt`、`PlaybackPositions.kt` 与根目录的 `.gitattributes`、`version.properties`、`gradle/gradle-daemon-jvm.properties`、`build-shim/`、`_verify/`；freerdpcore 从"5 个类"扩到实际的 28 个 java，并如实标出裁剪留下的零引用资源（`layout/{home, activity_bookmark, activity_about, activity_help, activity_shortcuts, bookmark_list_item}.xml`、`menu/` 三个、`xml/{advanced, gateway, screen, performance_flags, debug}_settings.xml`）与死类（`ExternalDisplayManager`、`KeystoreHelper`）
+- 顺手纠正一条子代理给的结论：它说 `DoubleGestureDetector` 是死代码，实际 `SessionView.java:171/442/1230` 一直在用——**双指手势仍走它**，只有 `utils/GestureDetector.java` 的检测主体没人实例化（只剩 `DoubleGestureDetector:18` 引用它的 `OnGestureListener` 接口）。文档按核实后的写
+
+### 修改
+
+- `.gitignore` 补三条，让 README「入库范围」那张表不再有名无实：`/build-shim/`（1.x 自写 shim 的 `librdpcore.so` 产物，源码线已删但本机还留 16 MB）、`/third_party/ExtUtils-MakeMaker-7.70/`（CPAN 原始包，内容已整理进 `perl-lib`，`perl-lib` 本身**必须入库**——`build-android.sh:47` 的 `PERL5LIB` 指它、`:49` 还检查它在不在）。「仓库与提交规范」那张表按实际 `.gitignore` 重写，并新加一段「入库前必看一眼的东西」把上面那套隐私占位写成规则
+- 根目录的 `g1.png`/`g2.png`（1.8 MB 真机截图）与 `i2.html`/`idx.html`（别的任务留下的 Ubuntu WSL 下载页存档）移进已被忽略的 `_verify/`，是移动不是删除
+- **`.gitignore` 的尾斜杠坑**：写文档时按"`/third_party/openssl-*/` 同时盖住源码包和它的 `.sha256`"落笔，实跑 `git add -A --dry-run` 才发现 `openssl-3.5.9.tar.gz.sha256` 在候选列表里——带结尾斜杠的规则**只匹配目录**，那个 `.sha256` 是文件，而 `/third_party/*.tar.gz` 也不匹配 `.tar.gz.sha256` 这种双后缀。校验值本身没有隐私、对复现构建还有用，所以决定**让它入库**并把 README 两处（目录结构与入库范围表）改成事实。教训：忽略规则不能靠读 `.gitignore` 推断，要用 `git add -A --dry-run` 和 `git check-ignore -v` 各过一遍
+- `LocalFileProvider` 那条「工程不引 AndroidX」的理由、以及 `IspActivity.java:584` 的同款注释，都随 2.0 引入 Compose/appcompat 失效——README 改写成"历史原因、现有实现工作正常所以留着"，代码注释列入已知问题等下一轮
+
+- **`.gitattributes` 少钉了几类换行符**：原来只钉了 `gradlew`、`*.java`、`*.xml`、`*.gradle`、`*.properties`、`*.md`、`.gitignore`，没钉 `*.sh`、`*.kt`、`*.c`/`*.h`、`*.pm`/`*.pod`。本机 `core.autocrlf=true`（Git for Windows 装机默认）下，`* text=auto` 只保证**库内**是 LF、**检出到工作树会转成 CRLF**——新克隆的那台机器上 `./third_party/build-android.sh` 会因行尾 `\r` 报 `bad interpreter`，`perl-lib` 的 `.pm` 也会带脏参数，而这脚本正是 README「换机器时按这张表装东西」要求别人跑的。现在把这几类都钉成 `eol=lf`，复核方式 `git ls-files --eol`（看 `i/lf` 与 `attr/text eol=lf`）
+- **入库前把候选清单实跑了一遍**（`git add -A --dry-run` + `git check-ignore -v`）：222 个新增、17 个删除、13 个修改；`build-shim/`、`third_party/{freerdp,openssl-3.5.9,build,prebuilt}/`、`ExtUtils-MakeMaker-7.70/`、`_verify/`、`local.properties` 均确认被排除，敏感后缀（`.jks/.keystore/.p12/.pfx/.pem/.env/secrets*/token/passwords*`）零命中，>500 KB 的入库文件零个（最大的入库二进制仍是既有的图标 png 与 `gradle-wrapper.jar`）
+
+### 验证
+
+- 隐私：`grep -rnE '192\.168\.5\.[0-9]|<原来那个 DDNS 域名的字面量>|<原来那个 IPv6 前缀>' README.md CHANGELOG.md` → 0 命中（命令里的字面量按本机实际值填，本文档不复述）；MAC 形态（`([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}`）→ 0 命中；机器名（1.x 清过的那三个）→ 0 命中；**并且这条检查也跑在已提交的对象上**（`git show <commit>:CHANGELOG.md | grep -c …` → 0），只查工作树是不够的——本次就是提交之后才在 blob 里查出脱敏条目自己带着原值，随后重写了那个尚未推送的提交。`192.168.1.0/24` 那组示例与 `飞牛 NAS`、`Mi 10 Pro` 这类产品名按 1.x 的既有约定保留
+- 每条改动都带 `文件:行`，行号来自本轮实测：`TransferHub.kt:234-301`、`pin()` 与 `unpin()`、`SmbDownloadsActivity.kt:321/343-345` 对照 `DownloadStore.kt:165`、`SmbStreamService.kt:117-122`、`LibFreeRDP.java` 全部 `args.add` 逐行过、`SessionActivity.java:307/481-489/1118-1134`、`RdpSessionActivity.java:75`、`SessionDialogs.java:119/230`、`DnsActivity.java:236-270`、`MainActivity.java:89-94`、`IspActivity.java:598/614/864/640`、`SmbBrowseActivity.kt:1387/1233`、`SmbSettings.java:177-181`、`freerdpcore/build.gradle:14-15,41-45`、`CMakeLists.txt:42-51`、`gradle-wrapper.properties:4`、`gradle-daemon-jvm.properties`
+- 许可证逐个开 `~/.gradle/caches/modules-2/files-2.1/<group>/.../*.pom` 读 `<licenses>`：slf4j-api=MIT、bcprov="Bouncy Castle Licence"（原文写 MIT，已改）、mbassador 1.3.2=MIT、asn-one 0.6.0=Apache-2.0、smbj=Apache-2.0、jcifs 3.0.4=LGPL-2.1、**desugar_jdk_libs=GPLv2+CE**（原文写「Android SDK」）
+- 传递依赖的具体版本不写死：本机缓存里 bcprov 有 1.80.2/1.85/1.85.2 三份，无法从构建产物断定本工程解析到哪一版，所以那一列只写"由 jcifs-ng / SMBJ 的 POM 传递决定、本工程未钉"
+- **未做**：本轮不产出 APK，所以没有装机回归；`version.properties` 保持 114 / 2.0.71。**注意别为了"验一下文档"去跑构建**——`assemble*`/`install*`/`bundle*`/`package*` 会在配置阶段把版本号 +1，让日志与已发布条目对不上（判定在 `app/build.gradle:16-28`）
+- 本轮唯一"运行"的验证是静态核对：代码与文档两处都读，凡两处不一致就改文档、并把属于代码的那一侧写进「已知问题」
+
+## v2.0.71 — 2026-10-31
+
+「能不能用 UDP」的结论：**不能，不是配置问题**。顺带把信息面板的措辞写准。
+
+### 修改
+
+- 协议行里传输方式改成直接写 `TCP` / `UDP`，并在服务端声明了 UDP 而实际走 TCP 时补一句「服务端支持 UDP，FreeRDP 客户端未实现，实际走 TCP」。原来写的是「UDP 可协商未启用」——读起来像"把开关打开就行"，其实那条路根本不存在
+
+### 调查结论（为什么不能用 UDP）
+
+- `libfreerdp/core/multitransport.c:194` 客户端侧的处理器就叫 **`multitransport_no_udp()`**：服务端发来 UDP 引导请求（`INITIATE_REQUEST_PROTOCOL_UDPFECR`）时**直接回 `E_ABORT`**。`rdp.c` 里虽然按 `UDPFECL|UDPFECR` 建了 multitransport 对象，但真正处理请求的就是这个 no-udp 分支
+- `RDPUDP` 相关代码只出现在**服务端**（`peer.c`、`multitransport_server_request`）和协议常量里，客户端没有 UDP 数据面
+- `/multitransport` 命令行开关只是把 `TRANSPORT_TYPE_UDP_FECR|FECL|PREFERRED` 写进能力集，通道建不起来，所以加了也没用
+- mstsc 那张图里的「传输协议 UDP」是微软客户端实现了 MS-RDPEMT 的 UDP 数据面；要用只能换客户端（mstsc / Windows App），或者等 FreeRDP 补上这块
+
+### 验证
+
+- 代码路径已核对（`multitransport_no_udp` 的调用点在 `multitransport_new()` 的客户端分支）；构建通过
+- **未装机验证**：改这一版时手机前台被别的应用占了，为免误点没有继续往设备发触摸事件
+
+## v2.0.68 — 2026-10-31
+
+工具栏可以**长按拖动**了，收起后的把手同样能拖；松手吸附到最近的一侧。
+
+### 新增
+
+- 长按 500 ms 进入移动（震一下），之后手指带着整条走，松手横向吸附到最近的一边、纵向留在原地，带 140 ms 收尾动画。短按仍然是点击
+- 每个按钮都挂同一套触摸监听（`DragTouch`）：自己吃掉事件、短按转发 `performClick()`，这样长按后的 MOVE 才收得到
+- 收起 / 展开时如果已经手动挪过位置，**重新贴回最近的一侧**——只剩把手时宽度小了一截，不重贴会浮在半空离边一截
+
+### 修复
+
+- **父级抢手势**：这排按钮在 `HorizontalScrollView` 里，长按刚到手一动，父级 `onInterceptTouchEvent` 就把手势抢走并丢来一个 `CANCEL`，拖动永远进不去（日志实测：DOWN → armed → 立刻 CANCEL，一个 MOVE 都没有）。按下时 `requestDisallowInterceptTouchEvent(true)`、抬起时放开
+- **吸附位置停在 0**：落位时只写 `leftMargin` 不行——之前调过 `setMarginStart()`，RelativeLayout 解析时取的是 start 边距，于是横向吸附总回到 x=0。现在 start/left 一起写
+- 手动挪过之后 `setInsets()` 只更新可拖动边界（转屏后把位置夹回可见范围），不再改 margin，否则一转屏又被打回原位
+
+### 验证
+
+- Mi 10 Pro → 192.168.1.100（NLA），竖屏 1080×2340：工具栏初始 `17,228-853,295`，长按「收起」拖到 (820,1200) 松手后变成 `227,1162-1063,1229`——横向吸附到右边（`1080-836-17=227` 正好）、纵向跟着走；短按「信息」仍能弹出对话框，说明点击没被拖动逻辑吃掉
+- 未验证：收起后把手的拖动、收起/展开时的重新贴边（测到一半手机被切到别的应用，就没继续发触摸事件）。这两个分支和已验证的走同一套代码，差别只在尺寸变化后补一次 `snapToNearestSide`
+
+## v2.0.63 — 2026-10-31
+
+鼠标模式下，**画面四周的黑边也能推光标**了。
+
+### 修复
+
+- 画面铺不满视口时（比如 1920×1080 桌面放在 2.15:1 的横屏视口里），四周那圈黑边属于 `ScrollView2D` 而不是 `SessionView`，落在黑边上的手势根本到不了单指状态机——鼠标模式下在边上怎么划都没反应
+- `ScrollView2D.setOnTouchListener` 把未被 `SessionView` 消费的事件转给 `SessionView.handleExternalTouch()`，后者只在鼠标模式接、直接走同一套状态机。触摸板只吃相对位移，坐标系差一个常量偏移无所谓，所以不用做坐标换算；直控模式下点黑边本来就没有意义，直接不接，本地平移照常
+- 状态机主体从 `onTouchEvent` 抽成 `dispatchFinger()`，两条入口共用
+
+### 验证
+
+- Mi 10 Pro → 192.168.1.100（NLA），横屏，内容 1857×1045 居中于 2250×1045 视口（左右各约 196 px 黑边）：在**左黑边** (150, 700) 按下拖到 (600, 400)，画面里的白色光标出现并移动——会话刚建立时还没有光标（位置是 -1），所以这次出现本身就是黑边生效的证据
+- 未验证：黑边上的轻点/拖拽其它分支（长按右键、tap-and-a-half）手感，以及直控模式下黑边不响应（代码里按模式返回 false，没在真机上逐项点）
+
+## v2.0.62 — 2026-10-31
+
+跟随回到 1.x 的原样：**光标一进边缘带就把画面推到位，光标停在带子边、画面继续跟着手指滑**。前一版加的缓动和"松手补一次"都是自创的，前者不跟手、后者每次松手都滑一下，正是那个顿挫。
+
+### 修复
+
+- 增益回到 **1.0**（`FOLLOW_GAIN`），边缘带用 1.x 的 **15% / 64dp**：光标进带即推到位，光标随即停在带子边上，画面继续跟着手指滑——边滑边走。想更缓只改这一个常数（代价是光标更快贴近边线）
+- **松手时不再补动画**：1.x 的 `revealCursorIfOffscreen` 只在捏合/双击缩放后调用，不是每次手势结束都调。放在 ACTION_UP 里等于每松一次手就滑一下，那是顿挫的来源
+- 去掉上一版的像素余量累积（增益 1 时用不上，留着是死代码）
+
+### 验证
+
+- Mi 10 Pro → 192.168.1.100（NLA）：安装后连接、按住拖 900 px 正常，`railContainer` 偏移保持 `286`、画面没有多余滚动——这一版内容是 1857×1045、视口 2250×1045，装得下时本来就没有可移的余地，不动才是对的
+- 仍然只能你上手确认：**放大后的跟随手感**（`content > viewport` 只有捏合放大才会出现，这台机注不进第二根手指）。这一版的行为就是 1.x 的，若还嫌快就把 `FOLLOW_GAIN` 调小
+
+## v2.0.61 — 2026-10-31
+
+上一版"松手才动"变成了顿挫，这版改回**边滑边走**：拖动过程中画面连续地跟，但只跟光标所需位移的一部分（增益 0.35），所以既不会卡到松手才跳，也不会一次长拖就窜到极限。
+
+### 修复
+
+- 光标进到边缘带（12% 或 48dp）之后，画面按 `所需位移 × 0.35` 连续滑过去，光标留在带子里慢慢逼近边线。增益小于 1，画面永远比光标慢——这是"跟手"和"窜到边"之间的那个点
+- **余量累积**：慢速拖动时单步可能不足 1 px，直接截断会让画面卡住不动（又是一种顿挫），所以小数部分存在 `followCarryX/Y` 里留到下一步
+- 手势开始时清零余量；松手时仍保留一次 `smoothScrollBy` 对准（整只跑出视野→拉回正中，只贴边→推到留一小条），作为兜底
+
+### 验证
+
+- Mi 10 Pro → 192.168.1.100（NLA）：按住拖 1000 px，`railContainer` 偏移保持 `286`——这一版内容是 1857×1045 而视口 2250×1045，**装得下时本来就没有可移的余地**，所以画面不动是正确行为；光标落在拖动终点、位置正确，没有多余的滚动
+- 仍然没法机器验证：**放大后的连续跟随手感**。`min(视口/画面)` 的基数保证 1× 永远装得下，`content > viewport` 只有捏合放大才会出现，而这台机注不进第二根手指（`sendevent` 要 root）。增益 0.35 是照"跟手但不窜"调的起点，觉得还快或还慢，改 `FOLLOW_GAIN` 一个数就行
+
+## v2.0.60 — 2026-10-31
+
+跟随的时机才是根子所在：**按住期间不该跟随**。手指还按在屏上时每个事件都在移动光标，跟着推画面等于一次长拖就把滚动推到尽头——等松手时视野已经偏到别处。
+
+### 修复
+
+- `setRemoteCursorPosition()` 不再触发视角移动（它每个 MOVE 事件都会走到，是"重复移动到极限边界"的来源）
+- 改成**只在手势结束时对准一次**：`onTouchEvent` 的 ACTION_UP / CANCEL 里调 `revealCursorIfOffscreen()`，加上原有的捏合结束、换分辨率、转屏三处。松手时才把视角对准光标：整只在视野外就拉回正中，只是贴边就推到留一小条（8% 或 32dp），走 `ScrollView2D.smoothScrollBy` 缓动过去而不是瞬间跳
+- 按住拖动期间画面完全不动——用户有了稳定的参照系来推光标，松手后视野再跟上
+
+### 验证
+
+- Mi 10 Pro → 192.168.1.100（NLA）：鼠标模式下按住拖 900 px（900 ms 一划到底），`railContainer` 偏移全程保持 `286`（滚动量 0，画面没动），光标落在拖动终点、仍画在画面内；松手后也没有多余的滚动
+- 仍然没法机器验证：**放大状态下的松手对准**。`min(视口/画面)` 的基数保证 1× 永远装得下，`content > viewport` 只有放大才会出现，而多点触控注不进这台机（`sendevent` 要 root、`adb shell input` 只有一根手指）。这条请你捏一下确认
+
+## v2.0.59 — 2026-10-31
+
+上一版夹住了速度，但没治到根：**触得太早**。手指还按在屏上时，光标每来一个事件都在走，画面就每步都跟着走满同样的量——几下就跑到内容尽头，正是"刷地一下到头了"。
+
+### 修复
+
+- **跟随只在光标真要看不见时才动**：去掉 15% 的软推带（那条带子占了视野的 30%，光标刚走三分之一画面就开始跟），改成「光标还在视野里就完全不挪画面」，越出视野才推，且只推到贴边留一小条（8% 或 32dp，取小的那个）。这样光标有整个视野可走，画面只在非动不可时动一下
+- 于是也不再需要每步的速度上限（`maxStep`）和"跑出去就居中"两套分支——一条规则就够，代码少了一半
+
+### 验证
+
+- Mi 10 Pro → 192.168.1.100（NLA）：鼠标模式下滑动推光标 + 点一下，`railContainer` 偏移保持 `286`（= 内容在视口里居中，滚动量 0）——画面没被带着走；光标仍画在画面内、位置正确
+- 仍然没法机器验证：捏合放大后的跟随手感。`content > viewport` 只有放大才会出现（`min(视口/画面)` 的基数保证 1× 永远装得下），而多点触控注不进来（`sendevent` 要 root），所以这条只能你上手确认
+
+## v2.0.58 — 2026-10-31
+
+跟随改成与光标同速；工具栏能收起吸附到侧边；信息面板补上帧率、流量与协议。
+
+### 修复
+
+- **视角跑得比光标快**：软跟随一步就把光标从越界处吸到带子边，一次大幅移动（甩动、加速曲线顶到 2.25×）会让画面窜出去一大截。现在把每步的滚动量夹到「这一步光标自己走了多少」，差额留给下一步继续靠近——缓动跟拍，不是一步到位
+
+### 新增
+
+- **工具栏「收起」**：收起后只剩一枚 ☰ 把手，贴右边缘、垂直居中、alpha 0.55，点一下回顶部成全宽一排（1.x 的那套）。换位是改 `RelativeLayout` 的对齐规则（`ALIGN_PARENT_START|TOP` ↔ `ALIGN_PARENT_END|CENTER_VERTICAL`）而不是调 margin，横竖屏切换、导航栏在左在右都不用各算一遍
+- **信息面板扩充**（对着 mstsc 那张连接质量图补的）：
+  - 显示：当前缩放百分比 + 指针模式
+  - 协议：RDP 版本、安全协商（NLA / TLS / 标准 RDP 安全）、编码（RemoteFX + RDPGFX）、UDP 多传输状态（MS-RDPEMT 标志位：支持 / 已激活 / 未启用）
+  - 帧率：每秒「服务端发了多少帧位图更新」——桌面静止时就是 0，那是实话不是没采到
+  - 流量：本进程接收速率 + 会话开始以来的累计量（基线在连接建立时取，不把之前别的 App 的量算进来）
+  - 已连接时长
+
+### 修改
+
+- 原生层加 `freerdp_get_protocol_info()`：读 `instance->context->settings` 里的协商结果（`FreeRDP_RdpVersion` / `NlaSecurity` / `TlsSecurity` / `RdpSecurity` / `MultitransportFlags` / `RemoteFxCodec` / `NSCodec`），拼成 `;` 分隔的字符串交给 Java 本地化
+- **流量为什么不走 `freerdp_get_stats`**：它的入参是内部的 `const rdpRdp*`，客户端公共 API 取不到（`freerdp->settings`、`freerdp->rdp` 在 3.28 已经不是公开成员，编译时直接报 no member）。改用 `TrafficStats.getUidRxBytes`，和 1.x 同一套路，这台机可用；不支持时面板显示「本机不支持流量统计」而不是显示 0
+
+### 验证
+
+- Mi 10 Pro → 192.168.1.100（NLA）：
+  - 信息面板实测输出 `协议：RDP 10.12 · NLA + TLS · RemoteFX + RDPGFX · UDP 可协商未启用`、`显示：97% · 触控`、`帧率：18 fps · 流量：216.3 KB/s ↓ · 会话内 22.8 MB`、`已连接：0:02:02`；桌面静止时帧率与速率归 0，累计量仍在涨（采样器每秒跑着）
+  - 收起后界面上只剩坐标 (2249, 540) 的把手，桌面铺满整屏；点把手，八个按钮回到顶部一排，第一个标签变成「收起」
+- 未验证：捏合放大后的同速跟随手感（`sendevent` 要 root、`adb shell input` 注不进第二根手指）
+
+## v2.0.55 — 2026-10-31
+
+修两个真机反馈出来的问题：视角跟随**方向是反的**（光标看着往回走），以及不开全屏时**顶部一大块黑**。
+
+### 修复
+
+- **跟随推反了**：`followCursor()` 软推那一支写成 `marginX - vx`（正数），而 `scrollBy` 要的是「现在的位置 − 想要的位置」，正确写法是 `vx - marginX`（负数）。结果往左推光标，画面跟着往左跑，光标反倒离带子更远——就是"鼠标往回走"。只有左/上两支是反的，右/下本来就对，所以症状是"往一个方向走正常、往回走就乱"。抽成 `followDelta(pos, low, high)` 一条式子，两轴各算各的
+- **一轴推了就不看另一轴**：原来是 `else if` 链，横向需要推时纵向完全不参与判断（反之也一样），所以贴边斜着走只跟一半。现在两轴独立
+- **顶部那块没人用的黑**：`onWindowInsetsChanged()` 拿 `statusBars | displayCutout` 的 top 给根布局留 padding，MIUI 把刘海也算进 top——实测横屏留 194 px、竖屏留 211 px，而系统真正让给状态栏的只有 35 px（`dumpsys window`：`cur=2340x1080 app=2250x1045`）。现在根布局不为状态栏挖白，桌面一直铺到屏幕顶（状态栏本来就是半透明的，压在画面上），工具栏自己按 `statusBars().top` 往下让，免得按钮盖在系统图标上
+
+### 验证
+
+- Mi 10 Pro（横屏）→ 192.168.1.100（NLA）：不开全屏时 `sessionScrollView` 从 `0,194-2340,1080` 变成 `0,0-2340,1080`，**顶部黑块没了**；画面由 `1512×851` 长到 `1857×1045`（视口大了，基数跟着变大），工具栏落在状态栏下方；触控模式点 (315, 1015) 仍能精准打开 Windows 开始菜单——绝对坐标映射没被改坏
+- 方向那条按算术核对：`followDelta(50, 100, 900) = -50` → `scrollBy(-50)` → 内容右移 50 → 光标落到带子边 100 ✓；旧写法给 `+50` → 内容左移 → 光标被推出视野
+- 未验证：捏合放大后的实际跟随手感（`sendevent` 要 root、`adb shell input` 注不进第二根手指），需要上手确认
+
+## v2.0.54 — 2026-10-31
+
+修「双指放大后鼠标划出视野就找不到」：视角现在真的跟着光标走，1.x 那套软跟随 + 丢了拉回中心。
+
+### 修复
+
+- **跟随的门槛判错了**：原来写的是「用户放大了」（`userZoom > 1`）才跟随。加了会话内改分辨率之后这条就不成立了——桌面 2340×1080 在非全屏横屏的视口（2250×851）下即使 1× 也会超出视口，光标照样能划出去，而旧门槛直接放过。现在判据换成真正的「画面比视口大」，并且**按轴判**：装得下的那个轴不动，免得白抖一下
+- **算视角时读的是还没跑完的布局**：`followCursor` 原来用 `getWidth()` 当内容尺寸，而刚改完缩放时 `requestLayout` 还没落地，读到的是旧尺寸——捏合结束那一帧正是这样算错的，表现就是"放大后鼠标没了"。现在按 `位图 × 当前缩放` 算，永远即时正确
+- **挪视角的时机太早**：`revealCursorIfOffscreen()` 改成 `post` 到下一帧再做。可滚动的范围是随内容尺寸定的，布局没跑完就被旧范围夹住，挪不到位
+- **软跟随和"丢了居中"合成一条**：原来"整只跑出去就拉回中心"只在捏合结束时做，普通移动只软推到边缘留一圈——快速一划把光标甩出视野时，那一圈推量不够。现在每次光标移动都判：靠近边缘就推，完全跑出去就摆回视野中间
+
+### 验证
+
+- Mi 10 Pro（横屏，视口 2250×851）→ 192.168.1.100（NLA）：会话内 1920×1080 → 1024×768 → 1920×1080 动态改分辨率每次都当场重排（`sessionView` 1512×851 ↔ 1134×851），改完视角自动重新对准；鼠标模式下滑动推光标，箭头仍画在画面内、位置正确
+- **没能机器验证**：捏合放大那一条路径——`sendevent /dev/input/event5` 要 root（这台 MIUI 上 shell 不在 `input` 组），`adb shell input` 又注不进第二根手指。逻辑上三处修复都对着这个场景，但请上手捏一下确认手感
+
+## v2.0.50 — 2026-10-31
+
+把分辨率改到**会话的控制界面上**，并且实测出：**这台 Windows 认 display-control，改分辨率不用重连**——1.0 那句"服务端完全不理这个 PDU"是 IronRDP 的发法，换成 FreeRDP 的 disp 通道就成了。
+
+### 新增
+
+- **工具栏「分辨率」键**（[floating_toolbar.xml](freerdpcore/src/main/res/layout/floating_toolbar.xml)）：在会话页里直接改桌面分辨率，选完点「应用」当场生效，不用断开重连。走的是 `LibFreeRDP.sendMonitorLayout()` → `android_disp_send_monitor_layout()` → MS-RDPEDISP 的 Monitor Layout PDU（`/disp` 本来就开着，这条通道一直在，只是没人按）
+- **应用后确认一次**：`SessionActivity.applyResolution()` 发出布局后等 1.8 s 比对新位图尺寸——成了报「桌面已切到 1280×800」，没成就报「服务端没接受动态改分辨率，下次连接会按它要桌面」。不确认的话用户会以为改了，回头发现还是老的
+- **`SessionResolution`**（[freerdpcore/.../SessionResolution.java](freerdpcore/src/main/java/com/freerdp/freerdpcore/presentation/SessionResolution.java)）：分辨率的唯一存储（`session_resolution_width/height`，0×0 = 适配屏幕）+ 唯一的那份对话框。连接簿的「显示设置」现在只是调同一个对话框（传 `onApply = null` → 只保存、下次连接生效），两处改的是同一个值，不再各存一份
+
+### 移除
+
+- `RdpSettings` 里被这次搬家变成死码的部分：指针模式、缩放方式、灵敏度、桌面尺寸与自适应开关、预设表、`label/presetIndex/effectiveSize/deviceSize` 全删掉，只剩码率档位（色深与是否有损编码由它派生）。连接簿那版对话框的临时字符串（`rdp_display_size_title`/`rdp_display_saved`/`rdp_adaptive_size`/`rdp_size_match_phone_format`）一并删
+- **注意迁移**：分辨率存储从 app 侧的 `rdp_display` 偏好文件搬到 freerdpcore 的默认偏好，之前在那儿存过尺寸的人（只有上一版几分钟的窗口）会回到默认 1920×1080
+
+### 验证
+
+- Mi 10 Pro（横屏 2340×1080）→ 192.168.1.100（NLA）：
+  - 会话内 1920×1080 → 1280×800：`sessionView` 从 `1512×851` 变 `1361×851`（= 1280×800 按 1.064 等比），**桌面当场重排**，没有重连
+  - 勾「适配屏幕分辨率」→ 桌面变 2340×1080：`sessionView = 1843×851`——此时视口是 2250×851（2.64:1），桌面 2.17:1，两侧仍有黑边，因为状态栏/导航栏把可用高度吃掉了
+  - 再点「全屏」：`sessionScrollView = 2340×1080`、`sessionView = 2340×1080`——**1:1 铺满整屏，零黑边、不裁、不拉**，任务栏和桌面边缘都在
+  - 连接簿 → 显示设置 与会话页 → 分辨率 打开的是同一个对话框，改哪儿结果一致
+- 未验证：双指捏合/滚动/右键、三指中键（`adb shell input` 注入不了多点触控）；外接鼠标手感；服务端不认 display-control 的那条提示路径（这台机器认，没法自然触发）
+
+## v2.0.47 — 2026-10-31
+
+按反馈**去掉拉伸**，改成「等比放大缩小 + 让桌面分辨率去对屏幕比例」——想要没黑边靠的是比例对上，不是把画面拽变形。
+
+### 移除
+
+- **拉伸显示模式**（v2.0.45 加的）：工具栏的「拉伸/适应」键、`SessionView.SCALE_STRETCH`、`ApplicationSettingsActivity` 的 `session_scale_mode` 偏好全部删掉。横屏 2340×1080 的视口放 16:9 桌面要拉宽约 48%，看字是扁的
+
+### 新增
+
+- **连接簿的「显示设置」**（[RdpActivity.java](app/src/main/java/com/decibelmeter/app/RdpActivity.java) 的溢出菜单 → 桌面分辨率对话框）：
+  - **☑ 适配屏幕分辨率**——按手机此刻的实际像素向服务端要桌面（`RdpSettings.adaptiveSize`），一个远端像素正好一个屏幕像素，1:1、无黑边、不裁不拉
+  - 分辨率预设单选：1920×1080 / 1600×900 / 1366×768 / 1280×800 / 1024×768 / 匹配本机（按手机比例算出的横屏尺寸）；勾上「适配」时单选组禁用
+  - 放在连接之前这一页是因为**分辨率在握手时谈定**，改不了正在跑的会话；保存后提示「下次连接生效」
+- `RdpSessionActivity` 改用 `settings.effectiveSize(this)`：原来它只认「自适应」开关，否则硬编码 1920×1080，选了预设也不生效
+
+### 修改
+
+- `applyFitZoom()` 永远 `min(视口/画面)` 整幅放下；缩放折回**单一等比** `scaleFactor`（v2.0.45 为拉伸引入的 `scaleX/scaleY` 两轴分开随之删掉，坐标映射、光标绘制、软跟随、触摸板位移、滚轮格距都改回一个值）
+
+### 验证
+
+- Mi 10 Pro（竖屏 1080×2340）→ 192.168.1.100（NLA）：连接簿菜单出现「显示设置」，对话框渲染出复选框 + 6 个预设（含「匹配本机（1920×886）」）；勾上适配并应用后重连，信息面板显示 **`桌面：1080×2340`**，`sessionScrollView = 1080×2129`、`sessionView = 966×2094`（基数 0.895 等比）——**桌面铺满整屏、零黑边、无变形，开始菜单与任务栏都在眼里**
+- 未验证：双指捏合、双指滚动、双指轻点右键、三指轻点中键（`adb shell input` 注入不了多点触控）；外接鼠标/触摸板手感；「适配」开着时旋转手机不会自动按新方向重连（1.x 有这条，2.x 的会话页在 freerdpcore 里、重建会话要回到应用侧，暂时没接）
+
+## v2.0.45 — 2026-10-31
+
+显示方式也照 1.0 来：**默认永远整幅放下**（横屏不再裁掉任务栏），要零黑边就切「拉伸」。
+
+### 修复
+
+- **横屏画面缺一大块**：v2.0.43 之前横屏按宽度铺满（基数 = 视口宽 / 1920），1920×1080 的桌面在 2340×1080 的屏上会变成 2340×1316，上下各被裁掉约 120~230 px——任务栏直接被挤出可视区，看着就是"显示界面不全"。1.0 的 `Layout` 从来只做 `min(视口/画面)` 的整幅放下，放大交给捏合，所以永远不会缺东西。现在横竖屏都回到整幅放下
+
+### 新增
+
+- **显示方式「适应 / 拉伸」**（工具栏第二个键，和指针模式一样记住选择）：适应=保持比例整幅放下（一定有黑边但画面完整）；拉伸=两轴各自铺满（零黑边，代价是宽高比被拉掉——横屏视口 2250×851 是 2.64:1，对 16:9 的桌面约拉宽 48%）。这就是 1.0 的 `SCALE_FIT` / `SCALE_STRETCH`
+- 缩放改成**横竖轴分开存**（`scaleX` / `scaleY`）：拉伸模式下两轴不同，只记一个值的话「点哪儿」和「实际点到哪儿」会在一个轴上系统性偏移——1.0 的 `Layout` 注释里就是这条。触控映射、光标绘制、软跟随、触摸板位移、滚轮格距现在都按各自的轴算；光标本身按两轴均值画，不被拽变形
+
+### 修改
+
+- `setBaseScale(baseX, baseY)` 取代 `setBaseScale(base)`；`getZoom()` 返回纵向缩放（捏合算的是两轴共同的倍率变化，取哪个都一样），坐标映射改用新的 `getScaleX()` / `getScaleY()`
+- 去掉 `onMeasure` 里那句上游的 `Log.v`——它每次测量都打一行，正是排查布局死循环时刷屏的那一条
+
+### 验证
+
+- Mi 10 Pro → 192.168.1.100（NLA）：
+  - 横屏「适应」：`sessionScrollView = 2340×886`、`sessionView = 1512×851`（基数 0.788），整张桌面都在眼里——**任务栏和时间区可见、上下边缘没被裁**，左右各留黑边
+  - 横屏「拉伸」：`sessionView = 2250×851`，画面铺满整屏、零黑边，任务栏仍在；按钮文案同步成「适应」
+  - 拉伸模式下点屏幕 (1100, 400) → 画面里的光标正落在那一点（两轴映射自洽）
+  - 显示方式与指针模式都记住了：切过的选择在会话内即时生效
+- 未验证：双指捏合、双指滚动、双指轻点右键、三指轻点中键（`adb shell input` 注入不了多点触控，需要手测）；外接鼠标/触摸板手感
+
+## v2.0.43 — 2026-10-31
+
+按 1.0（`E:\phone\ToolKit` 的 `RdpSessionActivity`）把手势与缩放两套逻辑搬过来：**两种指针模式一键切**、缩放改成「适配基数 × 用户倍率」并让画面**跟着光标走**。
+
+### 新增
+
+- **两种指针模式**（[SessionView.java](freerdpcore/src/main/java/com/freerdp/freerdpcore/presentation/SessionView.java) 的单指状态机）：
+  - **触控**：点哪儿打哪儿；单指滑动 = 远端滚轮（56 远端像素一格）并带松手甩动惯性；按住 500 ms 松手 = 右键；按住之后再移动超过半个 touchSlop = 拖拽
+  - **鼠标**：整块画面当触摸板，相对位移推远端光标，带 1.0 那条 sqrt 加速曲线（慢 0.75× → 1 px/ms 1.5× → 4 px/ms 封顶 2.25×）；轻点 = 左键（落在光标处，不是手指处）；轻点后在双击超时内再按住 = **tap-and-a-half** 直接进拖拽（按住 180 ms 或移动半个 touchSlop 都算，不用先空拖一段）；按住 600 ms 松手 = 右键，这期间一动就取消
+  - 两指轻点 = 右键（上游 `DoubleGestureDetector` 的 single tap），**三指轻点 = 中键**（检测器只认两指，这段自己判）
+- **工具栏「鼠标/触控」切换键**（放在最左）：文字写的是「点下去会切到什么」，和横屏/全屏同一套读法；选择记在偏好里，下一场会话沿用；切换时先结掉当前按住的键，否则从鼠标切走时远端会以为左键一直没抬
+- **光标软跟随**：放大状态下光标靠近视野边缘一圈（15% 或 64 dp）就把画面往那个方向推，而不是一越界就整屏跳到中心；捏合结束时如果光标整只跑出去了才直接居中
+
+### 修改
+
+- **缩放模型换成基数 × 倍率**：`setBaseScale()` 是「按视口铺满」（竖屏整幅放下、横屏按宽度铺满），`setUserZoom()` 是 1×~4× 的用户倍率，有效缩放 = 两者相乘。原来捏合改的是绝对缩放，转屏重算适配时把用户的放大倍数一起冲掉；现在转屏只动基数
+- 捏合改调倍率，并保持**焦点下那个远端像素不动**（原来是「滚动 origin 与新焦点的差」，倍率被夹住时还会白挪一下）；双击只在**已经放大**时用来回到 1×——没放大时不拦双击，桌面图标、文件列表全靠双击打开
+- 双指滚动：从「每 10 px 发一次、只有纵向」改成**横竖各攒 30 dp 一格**，一次跨过几格就发几条
+- 滚轮事件改发在**指针当前位置**（原来固定在 `(0,0)`）：Windows 按指针所在窗口决定滚谁，发在左上角会滚到不该滚的那一块
+- 横竖屏按钮的标签以**真实方向**为准（`onConfigurationChanged` 里同步）：自动旋转把屏幕转过去之后，按钮还停在旧文案上会让人以为没生效
+- 单指拖动的归属：画面超出视口时（放大后）让给 `ScrollView2D` 本地平移，SessionView 收到 `ACTION_CANCEL` 就把按住的键结掉；鼠标模式下单指是推光标的，本地平移直接关掉
+
+### 验证
+
+- Mi 10 Pro → 192.168.1.100（NLA）：
+  - 触控模式：在桌面空白处按住 900 ms 松手 → Windows 11 桌面右键菜单出现（查看/排序方式/刷新/新建/显示设置/个性化…），且光标箭头就画在菜单左上角；轻点一下菜单关闭；竖屏单指上滑 → 抖音信息流滚动（远端滚轮，不是本地挪画面）
+  - 切「鼠标」后：同样一段滑动，页面不动而画面里的光标跟着走；在画面内点一下 → 点在**光标所在位置**（视频开始播放）而不是手指位置
+  - 缩放：竖屏 `sessionScrollView = 1080×2129` → `sessionView = 1080×607`（基数 0.5625 整幅放下）；横屏 `2340×886` → `2250×1265`（基数 1.172 按宽铺满，零黑边）；横屏时标签自动是「竖屏」
+  - 记忆：断开重开后仍是鼠标模式（按钮显示「触控」）
+- 未验证：双指捏合、双指滚动、双指轻点右键、三指轻点中键（`adb shell input` 注入不了多点触控，需要手测）；外接鼠标/触摸板下的光标手感
+
+## v2.0.38 — 2026-10-31
+
+按反馈把光标**画进远端画面里**（界面上不再有任何悬浮指针），并修掉全屏/横屏切换后画面不放大的真正原因。
+
+### 修改
+
+- **光标合成进画面**：[SessionView.drawRemoteCursor()](freerdpcore/src/main/java/com/freerdp/freerdpcore/presentation/SessionView.java) 在 `onDraw()` 画完远端位图后，把服务端下发的光标位图按当前缩放画在画面内。FreeRDP 在 `libfreerdp/core/capabilities.c` 里把 `colorPointerFlag` 写死为 TRUE，服务端因此从不把光标烤进帧缓冲、也从不回传光标坐标——所以坐标改由我们自己记：`SessionInputManager` 里每个带坐标的输入事件（左/右/中键、拖动、悬停移动）都过一遍 `trackPointer()`，「我们把指针发到哪儿」就是光标在哪儿
+- **光标最小按原始尺寸画**（`cursorScale() = max(zoom, 1.0)`）：竖屏 0.56× 下跟着缩只剩 18 px，在手机上等于找不到；现在只有画面被放大时光标才跟着放大
+- **服务端要隐藏光标时退回默认箭头**而不是真的不画：触屏客户端一旦看不见指针就没法继续操作。同时本地这层从构造起就是 `PointerIcon.TYPE_NULL`，外接鼠标也不会出现「系统箭头 + 画面内箭头」两个光标
+- 悬浮触摸指针层（`TouchPointerView`）在会话页永久 `GONE`，不再向它转发光标位图；`SessionInputManager.toggleTouchPointer()` 随「鼠标」按钮一起删掉
+
+### 修复
+
+- **全屏/横屏切换后画面不放大**：真正的原因不是缩放没重算，而是 `onWindowInsetsChanged()` 只读设置项、不看会话内的 `forceFullscreen`——系统栏藏了，状态栏那 194 px 和导航栏那 90 px 留白却还留着，可视区被压成 2250×851。现在全屏时一并清掉留白与圆角安全区，并重发一次 `requestApplyInsets`
+- **布局死循环**：`scrollView` 的 `onLayoutChange → applyFitZoom → setZoom → requestLayout → onLayoutChange` 自己转圈（`requestLayout` 过的 View 即使边框没变也会回调监听器），实测 4 s 内 `onMeasure` 1524 次。改为算出来的缩放和当前值相等就不下发
+- **信息面板的桌面尺寸**取的是 `sessionView` 的宽高，那是缩放后的显示尺寸；改取远端位图
+
+### 验证
+
+- Mi 10 Pro（1080×2340）→ 192.168.1.100（NLA）：
+  - 竖屏适配缩放 0.5625、画面铺满宽度；点一下后白色描边箭头出现在画面内点击处，等 4 s（服务端已发 `OnPointerSetNull`）箭头仍在
+  - 全屏后根布局留白归零；再切横屏，`sessionScrollView = 0,0-2340,1080`、`sessionView = 0,0-2340,1316`（缩放 1.219，横向零黑边），标签同步为「竖屏 / 退出全屏」
+  - 空闲 3 s 的 `SessionView.onMeasure` 日志 0 条（修复前 4 s 1524 条）；信息面板显示 `桌面：1920×1080 · 32 位色`、`渲染引擎：3.28.0`
+- 未验证：外接鼠标下的实际手感（代码上本地光标已置 `TYPE_NULL`）、其他机型的刘海/挖孔留白组合
+
+## v2.0.32 — 2026-10-31
+
+修复连接簿连不上**公网设备、IPv6 与域名（DDNS）**的问题。
+
+### 修复
+
+- **裸 IPv6 地址被判非法**：FreeRDP 的 `/v:` 解析器只在 `[地址]` 形式下认 IPv6，裸的 `240e:…` 会被当成 `host:port` 拆开并返回“非法参数”，连接根本不会发起。`LibFreeRDP` 在拼参数前自动补方括号
+- **域名/DDNS 解析到不可达地址**：真机日志里是 `connect to 240e:…:3389 failed with error: No route to host`——域名解析出的地址（或其中的第一条）不可达/已过期，FreeRDP 直接失败。启动器现在先把域名解析成全部地址，逐个 TCP 试连（1.5 s/条、最多 4 条），把**实测可达的地址**交给 FreeRDP；全部失败才交回域名让它自己报错
+- **信息面板**：连接后显示「域名 → 实际 IP」，方便核对 DDNS 当前指向
+
+### 验证
+
+- Mi 10 Pro → 自己的 dynv6 DDNS 域名（本机没有把域名写进文档；仅 AAAA 记录，公网 IPv6 形如 `240e:…`）：`OnConnectionSuccess`，NLA 通过、会话建立；约 10 秒后服务端返回 `ERRINFO_RPC_INITIATED_DISCONNECT`（管理员在另一会话踢线，服务器侧策略），不是客户端问题
+- 局域网 IPv4 路径不受影响（启动器同样会预解析并传可达地址）
+
+## v2.0.30 — 2026-10-31
+
+会话界面按使用反馈收敛：工具栏换成半透明文字按钮，补上信息面板、横竖屏与全屏；触摸鼠标去掉一堆按钮；画面默认 1920×1080 并整幅适配。
+
+### 新增
+
+- **会话工具栏**（[floating_toolbar.xml](freerdpcore/src/main/res/layout/floating_toolbar.xml)）：左上角一排半透明按钮——鼠标 / 键盘 / 信息 / 横屏·竖屏 / 全屏·退出全屏 / 断开，压在当前画面上、不占布局高度
+- **信息面板**：「信息」按钮弹出连接信息——主机:端口、桌面尺寸与色深、引擎版本（`LibFreeRDP.getVersion()`）、客户端版本、启动前测得的 TCP 握手耗时（启动器在后台线程连一次测往返，再交给会话页）
+- **横屏 / 全屏**：横屏按钮在 `SENSOR_LANDSCAPE` 与 `UNSPECIFIED` 之间切换并更新标签；全屏按钮切换沉浸式（隐藏状态栏/导航栏），退出时恢复
+
+### 修改
+
+- **触摸鼠标精简**：上游的触摸指针有滚动、复位、软键盘、扩展键盘等一圈按钮，实际用起来点不准；现在只留三个——拖动+左键的蓝色圆钮、右键、关闭
+- **默认桌面 1920×1080**：启动器不再沿用旧偏好里的尺寸，只有显式勾过「自适应手机分辨率」才按手机来
+- **画面整幅适配**：会话页按「能整幅放下」的比例缩放显示（只缩不放，不改请求分辨率），横竖屏切换后重新计算，竖屏下也能一眼看全桌面
+- 工具栏的顶部留白避免与状态栏重复叠加（根布局已按状态栏留过 padding）
+
+### 验证
+
+- Mi 10 Pro → 192.168.1.100（NLA）：工具栏显示正常；信息面板显示 `1920×1080 · 16 位色`、引擎 `3.28.0`、客户端 `2.0.24`、TCP 握手 4 ms；横屏切到 2340×1080 且桌面整幅铺满、标签变「竖屏」；全屏后状态栏消失、标签变「退出全屏」；切回竖屏后重新适配；触摸鼠标只剩左键/右键/关闭；「断开」直接退回局域网页
+- 未验证：长时间会话、不同机型上的横竖屏切换动画、全屏下的软键盘布局
+
+## v2.0.20 — 2026-10-31
+
+远程桌面改为**直接使用 FreeRDP 官方 Android 客户端**：会话界面、触摸/鼠标/键盘的控制逻辑全部换成上游实现，替换 v2.0.12 里自绘会话界面 + 自写 JNI 输入层的做法（那版的点击/鼠标在真机上手感不对）。
+
+### 新增
+
+- **`:freerdpcore` 库模块**：从 FreeRDP 3.28.0 的 `client/Android/Studio/freeRDPCore` 裁剪而来（MPL-2.0）——保留 `SessionActivity` / `SessionView` / `SessionInputManager` / `TouchPointerView` / `ScrollView2D` / `LibFreeRDP` 与会话相关资源，删掉 aFreeRDP 基于 Room + SQLCipher 的主页、连接簿、历史与快捷方式
+- **原生层换成上游 `android_*.c`**：`android_freerdp.c` / `android_event.c` / `android_jni_callback.c` / `android_cliprdr.c` / `android_disp.c` / `android_rail.c`，编成 `libfreerdp-android.so`；设置不再逐项 set，而是把 `BookmarkBase` 翻成 FreeRDP 的 argv（`/v: /port: /u: /d: /p: /size: /bpp: /rfx /gfx /sound /audio-mode: /disp /clipboard /cert:ignore`）交给 `freerdp_parse_arguments`
+- **会话入口变薄**：`RdpSessionActivity` 只做规范化地址、取/弹凭据、构造书签并启动 FreeRDP 的 `SessionActivity`；连接簿与局域网页的 Intent 契约不变
+- **应用 Application 换成 `GlobalApp`**：会话生命周期、连接事件与剪贴板监听都由 FreeRDP 客户端管理
+- 声音、剪贴板、GFX、触摸指针、软键盘/扩展键、硬件键盘映射都是 FreeRDP 自带实现
+
+### 修改
+
+- FreeRDP 构建补 `CHANNEL_RAIL_CLIENT=ON`（`android_rail.c` 依赖 rail 客户端入口）
+- 静态链接时 `android_freerdp.c` 与 WinPR 各有一个 `JNI_OnLoad`/`JNI_OnUnload`：链接放行重复定义，并在我们的 `JNI_OnLoad` 里同时给 WinPR 的 `jniVm` 赋值（`winpr_jni_attach_thread` 依赖它）
+- `LibFreeRDP` 静态块只加载 `libfreerdp-android.so`（上游 APK 里 freerdp3/client3/winpr3 是分开的共享库，本工程全部静态合并）
+- 会话屏不再有自绘状态行、连接详情对话框、分辨率/画质档位与自定义手势；这些由 FreeRDP 客户端自己的界面承担（分辨率与画质默认取 `RdpSettings` 的 1920×1080 / 省流档）
+
+### 修复
+
+- **鼠标/点击不生效**：改用 FreeRDP 的 `SessionInputManager` 后，点任务栏开始按钮能弹出 Windows 搜索菜单，硬件键盘能在搜索框里打出文字
+- **启动崩溃**：旧写法把 `CredentialStore` 放在字段初始化里（Activity 尚未 attach，`getApplicationContext()` 为 null），移到 `onCreate`
+
+### 移除
+
+- `RdpNative.java`、`rdpcore/`（自写 C shim 与本项目自定义的输入逻辑）、`RdpKeys`、旧的会话布局/连接详情/手势资源，以及 `local.properties` 里的 `rdpNative.enabled` 开关（原生层随构建一起编）
+
+### 验证
+
+- Mi 10 Pro → 192.168.1.100（Windows 11，强制 NLA）：连通、画面颜色正确；**点开始按钮弹出 Windows 搜索菜单**；**硬件键盘在 Windows 搜索框打出 `not`**；RDPSND 通道建立、OpenSL ES 后端加载；退出会话无崩溃
+- APK 约 40 MB，`libfreerdp-android.so` arm64 9.3 MB / armv7 7.0 MB（未压缩、已剥符号）
+- **未验证**：声音是否真的出声、长按右键与双指滚动、剪贴板双向、旋转/自适应、长时间稳定性
+- 测试环境提醒：这台手机上有一个会注入 `KEYCODE_BACK` 的辅助/自动化应用（logcat：`Input event injection from pid 941`），会在几秒后把 FreeRDP 会话关掉，看起来像「自己退出」——与客户端无关
+
+### 文档
+
+- README 的「远程桌面」小节按「FreeRDP 官方 Android 客户端」重写；目录结构、依赖表、致谢、体积口径与构建要求同步；`third_party/README.md` 更新 rail 通道、MPL-2.0 许可与产物名
+
+## v2.0.12 — 2026-10-31
+
+内置远程桌面换引擎：从 Rust + IronRDP 换成 **C + FreeRDP 3.28.0**（静态链入 OpenSSL 3.5.9）。1.x 两次在「安卓上交叉编译 FreeRDP」上卡死，这次把那条路走通了；Java 侧的 JNI 契约保持不变，连接簿、凭据、手势与界面一行没改。
+
+### 修改
+
+- **协议层换成 FreeRDP**：NLA/CredSSP、位图、指针、RDPSND 全部由 FreeRDP 实现；`rdpcore/` 从 Rust crate 改成 C shim（`session.c` + `jni_bridge.c`），导出的 22 个 native 方法、状态码、帧号与输入语义与 1.x 完全一致
+- **构建链路重做**：`third_party/build-android.sh` 交叉编译 OpenSSL + FreeRDP 成每个 ABI 一套静态库（源码按固定版本拉取、SHA-256 校验），AGP 的 `externalNativeBuild` 把 `rdpcore/` 编成 `librdpcore.so` 直接进 APK；删掉 1.x 的 `RdpCoreBuildTask`（手写 Gradle 任务调 cargo、再拷 `.so` 进 jniLibs）
+- **链接 API 回到 24**：声音改用 FreeRDP 自带的 OpenSL ES 后端，不再需要 `libaaudio.so`（API 26），Android 7.x 也能加载内置通道
+- **输入状态自维护**：按住的鼠标键位、按下的扫描码由原生层记录，`releaseAll` 逐个抬起；拖动中的移动事件带按键位；侧键走扩展鼠标事件；Java 的 0xE000 扩展位在原生层换算成 FreeRDP 的 `KBDEXT=0x0100`
+- **滚轮**：±120 编进 flags 低 9 位，负数按 9 位补码（与 xfreerdp 一致），横向用 `PTR_FLAGS_HWHEEL`
+- **连接详情**：内核一行显示 `rdpcore 2.0 / FreeRDP 3.28.0`；音频包计数不再显示——FreeRDP 的 OpenSL ES 后端不暴露包计数，`nativeAudioPackets()` 返回 -1，界面只显示「声音：已开/未开」
+- **体积**：`librdpcore.so` arm64 约 9.3 MB、armv7 约 7.0 MB（1.x 为 13.9 / 9.65 MB，均未压缩、已剥符号）
+
+### 修复
+
+- **触控模式下点「连接详情」必崩**（1.x 遗留）：模式行把 `R.string.rdp_mode_touch` 写成了 `RdpSettings.MODE_TOUCH`（常量 0），`getString(0)` 抛 `Resources$NotFoundException`
+- **画面红绿对调、蓝色为 0**：FreeRDP 的像素格式名按内存字节序，`PIXEL_FORMAT_XRGB32` 是 [X,R,G,B]；gdi 改用 `PIXEL_FORMAT_BGRA32`（内存 B,G,R,A，小端下正好是 Android `ARGB_8888`）
+
+### 原生层（踩坑记录，都已固化进 `third_party/README.md`）
+
+- **OpenSSL 为什么这次编得动**：1.x 卡在缺 GNU make 与 perl 模块。NDK 自带 `make.exe`；Git for Windows 的精简 perl 缺 `Locale::Maketext` / `ExtUtils::MakeMaker` / `Pod::*`，补进 `third_party/perl-lib`（纯 Perl，来自 Perl 官方仓库与 CPAN）；OpenSSL 用 `no-shared no-asm`。MbedTLS 走不通——FreeRDP 顶层把 OpenSSL 写成 `REQUIRED`
+- **客户端上下文必须内嵌 `rdpClientContext`**：只给 `rdpContext` 的大小会让 `freerdp_client_context_new` 返回 NULL（「无法创建 RDP 上下文」）
+- **安卓没有 `HOME`**：`freerdp_settings_new` 要 HomePath，拿不到就建不出上下文（日志只有 `KNOWN_PATH_HOME is nullptr`）；start 时把 `HOME` 指到应用私有目录
+- **NLA 算 MD4 失败**：OpenSSL 3 把 MD4/RC4 挪进 legacy provider，静态库不带可加载的 provider 模块；按官方 Android 构建开 `WITH_INTERNAL_MD4/RC4/MD5`，用 WinPR 自带实现
+- **32 位 ARM 的 `__thread`**：FreeRDP 默认开 ThinLTO，LTO 把 TLS 降低推迟到链接期，`-femulated-tls` 不生效、回到 bionic 到 API 30 才导出的 `__tls_get_addr`；关掉 LTO 后每个对象在编译期定死 TLS 模型
+- **工具链细节**：CMake 3.31.5 + Ninja 用 `sdkmanager` 装；CMake 是 Windows 原生程序，脚本里 MSYS 路径要 `cygpath` 转回 `D:/` 形式；OpenSSL 只支持干净的 out-of-source 构建，且传给 `Configure` 的源码路径要用 Windows 形式
+
+### 验证
+
+- `third_party/build-android.sh`（arm64-v8a + armeabi-v7a）通过；`assembleDebug` 通过，APK 内含两个 ABI 的 `librdpcore.so`，依赖只有系统库（`libc/libm/libdl/libz/liblog/libOpenSLES`）
+- Mi 10 Pro → Windows 11 虚机（强制 NLA）：**已连通**，桌面画面颜色正确；触控点击在远端生效（点开了页面上的视频）；连接详情可打开（往返 12 ms、输入统计实时增长、内核显示 FreeRDP 版本）；日志确认 `RDPSND 通道已连接` 与 `Loaded opensles backend for rdpsnd`；按返回键结束会话无崩溃，日志是干净的 `ERRCONNECT_CONNECT_CANCELLED`
+- **未复验**：应用内键盘打字的端到端、锁存 Win+E / Ctrl+Alt+Del、开始菜单的精确点击、长时间稳定性、横屏/全屏切换（界面逻辑与 1.x 相同，但引擎已换，需下轮补测）
+
+### 移除
+
+- `rdpcore/` 的 Rust crate（`Cargo.toml` / `src/lib.rs` / `third_party/ironrdp-rdpsnd-native`）、Gradle 里的 cargo 交叉编译任务、`local.properties` 的 `rdpNative.cargo` / `rdpNative.lib`
+- 1.x 的 MbedTLS 试验线（构建脚本里用 `WITH_MBEDTLS=OFF` 明确关掉）
+- 2.0 工程未复制 `Python/`（113MB，全工程没有引用）与 `_verify/`（真机截图）
+
+### 文档
+
+- `third_party/README.md`：依赖版本、来源与校验、构建步骤、许可、七条构建决定的来龙去脉
+- README 的「远程桌面」小节重写引擎与构建部分，「依赖」「致谢」「目录结构」「入库范围」同步更新；真机验证结论如实区分「已验证」与「未复验」
+
 ## v1.43 — 2026-10-31
 
 连接详情参照 Windows 远程桌面的「连接质量」对话框重做，补上往返时间、活动 ID 等真能用来排查的信息。

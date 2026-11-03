@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 会话工具栏：一排半透明文字按钮，固定在左上角（内容多时可横向滑动）。
+     按钮文字都是「点下去会切到什么」：指针模式 / 键盘 / 连接信息 / 横竖屏 / 全屏 / 断开。 -->
+<HorizontalScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/session_toolbar"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_alignParentTop="true"
+    android:layout_alignParentStart="true"
+    android:layout_margin="8dp"
+    android:background="@drawable/bg_session_toolbar"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="3dp">
+
+        <TextView
+            android:id="@+id/session_toolbar_toggle"
+            style="@style/SessionToolbarButton"
+            android:text="@string/session_toolbar_collapse"
+            android:contentDescription="@string/session_toolbar_collapse" />
+
+        <TextView
+            android:id="@+id/session_toolbar_pointer"
+            style="@style/SessionToolbarButton"
+            android:text="@string/session_toolbar_pointer" />
+
+        <TextView
+            android:id="@+id/session_toolbar_resolution"
+            style="@style/SessionToolbarButton"
+            android:text="@string/session_toolbar_resolution" />
+
+        <TextView
+            android:id="@+id/session_toolbar_keyboard"
+            style="@style/SessionToolbarButton"
+            android:text="@string/session_toolbar_keyboard" />
+
+        <TextView
+            android:id="@+id/session_toolbar_info"
+            style="@style/SessionToolbarButton"
+            android:text="@string/session_toolbar_info" />
+
+        <TextView
+            android:id="@+id/session_toolbar_orient"
+            style="@style/SessionToolbarButton"
+            android:text="@string/session_toolbar_landscape" />
+
+        <TextView
+            android:id="@+id/session_toolbar_fullscreen"
+            style="@style/SessionToolbarButton"
+            android:text="@string/session_toolbar_fullscreen" />
+
+        <TextView
+            android:id="@+id/session_toolbar_disconnect"
+            style="@style/SessionToolbarButton"
+            android:text="@string/session_toolbar_disconnect" />
+
+    </LinearLayout>
+
+</HorizontalScrollView>
