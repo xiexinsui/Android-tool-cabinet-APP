@@ -10,9 +10,13 @@ package com.freerdp.freerdpcore.presentation;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.Configuration;
+import android.graphics.Rect;
+import android.os.Build;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.view.WindowMetrics;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
@@ -52,8 +56,16 @@ public final class SessionResolution
 
 	public static int[] load(Context context)
 	{
-		int width = ApplicationSettingsActivity.get(context).getInt(KEY_WIDTH, PRESETS[0][0]);
-		int height = ApplicationSettingsActivity.get(context).getInt(KEY_HEIGHT, PRESETS[0][1]);
+		// 平板第一次用就跟随窗口，手机仍沿用既有的 1920×1080 默认；已经存过选择的不覆盖。
+		Configuration configuration = context.getResources().getConfiguration();
+		int smallestDp = Build.VERSION.SDK_INT >= 36
+		    ? configuration.smallestScreenWidthDp
+		    : Math.min(configuration.screenWidthDp, configuration.screenHeightDp);
+		boolean tablet = smallestDp >= 600;
+		int defaultWidth = tablet ? ADAPTIVE : PRESETS[0][0];
+		int defaultHeight = tablet ? ADAPTIVE : PRESETS[0][1];
+		int width = ApplicationSettingsActivity.get(context).getInt(KEY_WIDTH, defaultWidth);
+		int height = ApplicationSettingsActivity.get(context).getInt(KEY_HEIGHT, defaultHeight);
 		return new int[] {width, height};
 	}
 
@@ -78,9 +90,27 @@ public final class SessionResolution
 		return new int[] {even(screen[0]), even(screen[1])};
 	}
 
-	/** 当前方向的实际屏幕像素（竖屏 1080×2340、横屏 2340×1080）。 */
+	/**
+	 * 当前窗口的实际像素，而不是整块物理屏。分屏/自由窗口下 getRealMetrics 会把桌面要到
+	 * 整块平板的大小，画面立刻被缩得很小；优先取 Activity 的 WindowMetrics，拿不到再退回物理屏。
+	 */
 	public static int[] screenSize(Context context)
 	{
+		if (context instanceof Activity)
+		{
+			Activity activity = (Activity)context;
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+			{
+				WindowMetrics metrics = activity.getWindowManager().getCurrentWindowMetrics();
+				Rect bounds = metrics.getBounds();
+				if (bounds.width() > 0 && bounds.height() > 0)
+					return new int[] {bounds.width(), bounds.height()};
+			}
+			Rect visible = new Rect();
+			activity.getWindow().getDecorView().getWindowVisibleDisplayFrame(visible);
+			if (visible.width() > 0 && visible.height() > 0)
+				return new int[] {visible.width(), visible.height()};
+		}
 		WindowManager manager = (WindowManager)context.getSystemService(Context.WINDOW_SERVICE);
 		DisplayMetrics metrics = new DisplayMetrics();
 		manager.getDefaultDisplay().getRealMetrics(metrics);

@@ -38,12 +38,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
+        android:resizeableActivity="true"
         android:theme="@style/AppTheme">
 
         <activity
             android:name=".ToolBoxActivity"
             android:exported="true"
-            android:screenOrientation="portrait">
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -54,25 +55,25 @@
             android:name=".MainActivity"
             android:exported="false"
             android:label="@string/title_decibel"
-            android:screenOrientation="portrait" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
 
         <activity
             android:name=".DnsActivity"
             android:exported="false"
             android:label="@string/title_dns"
-            android:screenOrientation="portrait" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
 
         <activity
             android:name=".LanScanActivity"
             android:exported="false"
             android:label="@string/title_lan"
-            android:screenOrientation="portrait" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
 
         <activity
             android:name=".RdpActivity"
             android:exported="false"
             android:label="@string/title_rdp"
-            android:screenOrientation="portrait" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
 
         <!--
             内置远程桌面会话。刻意不锁方向（远端是桌面，横屏更有用），并声明 configChanges：
@@ -80,7 +81,7 @@
         -->
         <activity
             android:name=".RdpSessionActivity"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:exported="false"
             android:label="@string/rdp_session_title" />
 
@@ -91,7 +92,7 @@
             android:name=".SmbBrowseActivity"
             android:exported="false"
             android:label="@string/title_smb"
-            android:screenOrientation="portrait" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
 
         <!--
             共享文件预览。刻意不锁方向并声明 configChanges：视频横屏看才有意义，而默认行为下
@@ -130,7 +131,7 @@
             android:name=".SmbDownloadsActivity"
             android:exported="false"
             android:label="@string/smb_downloads_title"
-            android:screenOrientation="portrait" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
 
         <!-- 压缩包在线浏览/解压：只读包尾的目录表，条目表活在这一页里，退出即释放句柄 -->
         <activity
@@ -138,7 +139,7 @@
             android:exported="false"
             android:label="@string/smb_zip_title"
             android:parentActivityName=".SmbBrowseActivity"
-            android:screenOrientation="portrait" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
 
         <!--
             串流到外部播放器：本机回环 HTTP 代理活在服务里，页面关掉之后外部播放器还能继续播。
@@ -173,7 +174,7 @@
             android:name=".IspActivity"
             android:exported="true"
             android:label="@string/title_isp"
-            android:screenOrientation="portrait">
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>

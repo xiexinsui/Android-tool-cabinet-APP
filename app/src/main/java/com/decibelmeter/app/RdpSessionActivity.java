@@ -3,10 +3,12 @@ package com.decibelmeter.app;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.widget.Toast;
 
 import com.freerdp.freerdpcore.domain.BookmarkBase;
 import com.freerdp.freerdpcore.presentation.SessionActivity;
 import com.freerdp.freerdpcore.presentation.SessionResolution;
+import com.freerdp.freerdpcore.services.LibFreeRDP;
 
 /**
  * 远程桌面的入口页：拿到凭据后交给 FreeRDP 官方 Android 客户端的会话界面。
@@ -55,10 +57,17 @@ public final class RdpSessionActivity extends Activity {
     }
 
     private void launch(CredentialStore.Credential credential) {
+        if (!LibFreeRDP.isAvailable()) {
+            Toast.makeText(this, R.string.rdp_native_unavailable, Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
         RdpSettings settings = new RdpSettings(this);
-        // 桌面尺寸由「分辨率」那一份设置决定（连接簿的显示设置和会话页工具栏改的是同一个值）：
-        // 勾了「适配屏幕分辨率」就按手机此刻的像素要，否则用选中的预设
-        int[] size = SessionResolution.resolve(this, SessionResolution.load(this));
+        // 桌面尺寸由「分辨率」那一份设置决定（连接簿的显示设置和会话页工具栏改的是同一个值）。
+        // 平板第一次用默认自适应；无论手机还是平板，勾了自适应都必须传 fitscreen 而不是 custom，
+        // 否则 SessionActivity.onConfigurationChanged 里的 isFitScreen() 永远为假，旋转/分屏不会重谈尺寸。
+        int[] requested = SessionResolution.load(this);
+        int[] size = SessionResolution.resolve(this, requested);
 
         BookmarkBase bookmark = new BookmarkBase();
         bookmark.setType(BookmarkBase.TYPE_MANUAL);
@@ -71,8 +80,11 @@ public final class RdpSessionActivity extends Activity {
         bookmark.setPassword(credential.password);
 
         BookmarkBase.ScreenSettings screen = bookmark.getActiveScreenSettings();
-        // "custom" + 明确宽高：屏幕尺寸由工具箱的显示设置决定（默认 1920×1080）
-        screen.setResolution("custom", size[0], size[1]);
+        if (SessionResolution.isAdaptive(requested)) {
+            screen.setResolution("fitscreen", size[0], size[1]);
+        } else {
+            screen.setResolution("custom", size[0], size[1]);
+        }
         screen.setColors(settings.colorDepth());
 
         BookmarkBase.PerformanceFlags performance = bookmark.getPerformanceFlags();

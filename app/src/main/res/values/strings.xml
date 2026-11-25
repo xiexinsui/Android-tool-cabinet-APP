@@ -481,6 +481,7 @@
     <string name="rdp_action_builtin">远程连接</string>
     <string name="lan_action_builtin_rdp">远程连接</string>
     <string name="rdp_session_title">远程连接</string>
+    <string name="rdp_native_unavailable">内置远程桌面仅支持 ARM64 / ARMv7 设备；当前设备没有对应的原生库，其余工具可正常使用。</string>
     <string name="rdp_state_idle">未开始</string>
     <string name="rdp_state_connecting">连接中</string>
     <string name="rdp_state_running">已连通</string>

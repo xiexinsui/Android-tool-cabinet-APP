@@ -480,6 +480,7 @@
     <string name="rdp_action_builtin">Remote connection</string>
     <string name="lan_action_builtin_rdp">Remote connection</string>
     <string name="rdp_session_title">Remote connection</string>
+    <string name="rdp_native_unavailable">The built-in remote desktop supports ARM64 / ARMv7 devices only. This device has no matching native library; the other tools still work.</string>
     <string name="rdp_state_idle">idle</string>
     <string name="rdp_state_connecting">connecting</string>
     <string name="rdp_state_running">connected</string>
@@ -515,6 +516,7 @@
     <string name="rdp_keys_title">Function keys</string>
     <string name="rdp_keys_cad">Ctrl + Alt + Del</string>
     <string name="rdp_display_title">Display and input</string>
+    <string name="rdp_menu_display">Display settings</string>
     <string name="rdp_display_size">Desktop resolution</string>
     <string name="rdp_display_scale">Picture scaling</string>
     <string name="rdp_scale_fit">Fit with letterbox</string>

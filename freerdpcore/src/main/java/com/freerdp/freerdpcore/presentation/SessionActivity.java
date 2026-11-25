@@ -767,6 +767,13 @@ public class SessionActivity extends AppCompatActivity
 	{
 		if (session == null || scrollView == null || size[0] <= 0 || size[1] <= 0)
 			return;
+		// 会话内切到「适配」也要把书签模式一起改掉，否则下次旋转仍走不到 isFitScreen() 分支。
+		BookmarkBase.ScreenSettings screenSettings =
+		    session.getBookmark().getActiveScreenSettings();
+		if (SessionResolution.isAdaptive(SessionResolution.load(this)))
+			screenSettings.setResolution("fitscreen", size[0], size[1]);
+		else
+			screenSettings.setResolution("custom", size[0], size[1]);
 		LibFreeRDP.sendMonitorLayout(session.getInstance(), size[0], size[1]);
 		final int wantedWidth = size[0];
 		final int wantedHeight = size[1];

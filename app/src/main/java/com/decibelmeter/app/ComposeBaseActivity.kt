@@ -28,12 +28,16 @@ abstract class ComposeBaseActivity : ComponentActivity() {
     protected var optionsMenu: Menu? = null
         private set
 
+    /** 预览页要在手机上也能横屏看视频；其余 Compose 页沿用手机竖屏、平板自由旋转。 */
+    protected open val allowLandscapeOnPhone: Boolean = false
+
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleHelper.wrap(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!allowLandscapeOnPhone) TabletCompat.applyOrientation(this)
         setContent {
             ToolboxTheme {
                 Content()

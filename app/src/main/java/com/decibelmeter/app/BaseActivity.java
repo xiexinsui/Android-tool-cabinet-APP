@@ -13,6 +13,12 @@ import android.view.MenuItem;
 public abstract class BaseActivity extends Activity {
 
     @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        TabletCompat.INSTANCE.applyOrientation(this);
+    }
+
+    @Override
     protected void attachBaseContext(Context newBase) {
         super.attachBaseContext(LocaleHelper.wrap(newBase));
     }

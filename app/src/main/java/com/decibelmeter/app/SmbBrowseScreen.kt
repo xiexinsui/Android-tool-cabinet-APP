@@ -53,6 +53,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -511,6 +512,7 @@ private fun TransferPanel(jobs: List<TransferJobView>, actions: SmbBrowseActions
         it.state == TransferState.RUNNING || it.state == TransferState.QUEUED
     }
     val finished = jobs.size - active
+    val rows = if (LocalConfiguration.current.screenHeightDp < 500) 2 else PANEL_ROWS
     Column(
             modifier = Modifier.fillMaxWidth().padding(top = 5.dp)
                     .clip(RoundedCornerShape(8.dp))
@@ -530,11 +532,11 @@ private fun TransferPanel(jobs: List<TransferJobView>, actions: SmbBrowseActions
                 }
             }
         }
-        for (job in jobs.take(PANEL_ROWS)) {
+        for (job in jobs.take(rows)) {
             JobRow(job, actions)
         }
-        if (jobs.size > PANEL_ROWS) {
-            Text(stringResource(R.string.smb_jobs_more, jobs.size - PANEL_ROWS),
+        if (jobs.size > rows) {
+            Text(stringResource(R.string.smb_jobs_more, jobs.size - rows),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

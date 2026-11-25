@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="screen_padding">16dp</dimen>
+    <dimen name="value_text_size">64sp</dimen>
+    <dimen name="meter_height">72dp</dimen>
+    <dimen name="spectrum_height">96dp</dimen>
+    <dimen name="curve_height">160dp</dimen>
     <dimen name="meter_tick_text">11sp</dimen>
 </resources>

@@ -113,8 +113,9 @@ public class FloatingToolbar
 	/**
 	 * 每个按钮都挂同一套拖动监听：短按转发成点击，长按之后才带着整条走。
 	 *
-	 * 触摸事件必须自己吃掉——交给 HorizontalScrollView 之后，长按后的 MOVE 就收不到了。
-	 * 代价是这排按钮不能横向滚动，但按钮就那么几个，横竖屏都放得下。
+	 * DOWN 时不禁止父级拦截——那会让整排按钮永远收不到横向滚动。长按成功后再禁，
+	 * 此时父级通常还没判定滑动，后续 MOVE 才能留在按钮上；提前划动则正常交给
+	 * HorizontalScrollView，分屏/窄屏下够得着后面的按钮。
 	 */
 	private void attachDrag()
 	{
@@ -146,11 +147,14 @@ public class FloatingToolbar
 		private int startTop;
 		private boolean armed;
 		private boolean moved;
+		private View armedView;
 
 		private final Runnable arm = new Runnable() {
 			@Override public void run()
 			{
 				armed = true;
+				if (armedView != null && armedView.getParent() != null)
+					armedView.getParent().requestDisallowInterceptTouchEvent(true);
 				container.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
 			}
 		};
@@ -166,10 +170,7 @@ public class FloatingToolbar
 					startTop = container.getTop();
 					armed = false;
 					moved = false;
-					// 这排按钮在 HorizontalScrollView 里：不禁掉拦截的话，长按刚到手一动，
-					// 父级就把手势抢走并丢给我们一个 CANCEL，拖动永远进不去
-					if (view.getParent() != null)
-						view.getParent().requestDisallowInterceptTouchEvent(true);
+					armedView = view;
 					container.removeCallbacks(arm);
 					container.postDelayed(arm, longPressTimeout);
 					return true;
@@ -193,8 +194,9 @@ public class FloatingToolbar
 
 				case MotionEvent.ACTION_UP:
 				case MotionEvent.ACTION_CANCEL:
-					if (view.getParent() != null)
-						view.getParent().requestDisallowInterceptTouchEvent(false);
+					if (armedView != null && armedView.getParent() != null)
+						armedView.getParent().requestDisallowInterceptTouchEvent(false);
+					armedView = null;
 					container.removeCallbacks(arm);
 					if (armed)
 					{

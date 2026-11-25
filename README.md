@@ -18,6 +18,15 @@
 
 ## 功能
 
+### 平板与分屏
+
+- **方向按设备分，不按页面猜**：`TabletCompat` 用最小屏宽 ≥600dp 判断平板；平板放开方向，手机仍按既有设计锁竖屏（避免采集线程与 USB 会话被旋转拆掉）。共享预览在手机上也始终放开——视频横屏看才有意义
+- **旋转/分屏不重建 Activity**：manifest 不再写死 `screenOrientation="portrait"`，而是给各页补 `orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden` 的 `configChanges`，并显式 `resizeableActivity="true"`。所以扫描、下载队列、USB 会话、Compose 选中状态都不会因转屏重来
+- **主界面可滚动**：分贝仪根布局改 `NestedScrollView`，曲线不再用 `weight=1` 抢剩下的高度；图表尺寸走 `dimen`，另有 `values-sw600dp` 与 `values-land` 两档。横屏/窄分屏下统计与「开始 / 校准」滚到底一定够得着
+- **Compose 动作行会换行**：已下载的「继续 / 放弃」、压缩包底栏的「清空 / 解压」改 `FlowRow`，不再挤在一条 Row 里；浏览页任务面板在窗口高度 <500dp 时从 4 行缩到 2 行，把空间留给列表
+- **RDP 工具栏恢复横向滚动**：以前为了长按拖动，在 DOWN 就禁掉父级拦截，导致整排永远不能滚；现在只在长按成功后禁，平时划动交给 `HorizontalScrollView`，窄分屏也够得着后面的按钮
+- **实测环境**：Pixel Tablet AVD（API 35，2560×1600，320dpi）与 Medium Phone AVD（API 37，1080×2400，420dpi）；详见 CHANGELOG v2.0.73 的验证清单
+
 ### 分贝仪（主页 → 分贝仪）
 
 - 实时分贝显示（30–120 dB 刻度条），RMS 声压计算，125 ms 指数平滑
@@ -182,6 +191,7 @@
 不装任何外部客户端，在应用里连、在应用里看画面、在应用里操作。2.x 换的做法是：**协议层、会话界面与控制逻辑都直接用 FreeRDP 官方 Android 客户端**（FreeRDP 3.28.0，`client/Android/Studio/freeRDPCore`），而不是像 1.x 那样自绘会话界面。真机上已连上强制 NLA 的 Windows 11：点开始按钮能弹出 Windows 菜单、键盘能在 Windows 搜索框里打出文字（见「已验证」）。
 
 - **组装方式**：`freerdpcore/` 是从上游 `freeRDPCore` 裁出来的库模块——保留 `SessionActivity` / `SessionView` / `SessionInputManager` / `TouchPointerView` / `LibFreeRDP`（JNI）这些会话界面与控制逻辑，删掉基于 Room + SQLCipher 的 aFreeRDP 主页与连接簿（连接簿仍用工具箱自己的）；原生层就是上游的 `android_*.c`，编成 `libfreerdp-android.so`
+- **ABI 边界与 x86 平板降级**：APK 只带 `arm64-v8a` 与 `armeabi-v7a` 两份原生库（`freerdpcore/build.gradle` 的 `abiFilters`），所以 x86/x86_64 平板与模拟器**用不了内置远程桌面**。v2.0.73 之前 `GlobalApp.onCreate` 会无条件触发 `LibFreeRDP` 静态加载，缺库直接让**整个工具箱启动崩溃**；现在加载失败只记日志并把 `isAvailable()` 置 false，RDP 入口明确提示「仅支持 ARM64 / ARMv7」，其余工具照常。Pixel Tablet AVD 就是靠这条降级才能跑 UI 回归
 - **设置走 FreeRDP 自己的解析器**：工具箱的 `RdpSessionActivity` 只做三件事——规范化地址、取凭据（缺了先弹框）、把参数拼成 `BookmarkBase`；`LibFreeRDP` 再把书签翻成命令行交给原生端 `freerdp_parse_arguments`，不是我们逐项 set settings。实际发出去的那一串（按 `LibFreeRDP.java` 的组装顺序）：
   - **每次都发**：`/gdi:sw`（软件 GDI，:323）、`/v:`（IPv6 会自动补方括号，:341）、`/port:`、`/u:` `/d:` `/p:`（有值才发）、`/size:WxH`、`/bpp:`、`/scale:`（:399，缩放预设恒为 100，没有 UI 改它）、`/clipboard`、`/disp`（:490-491，无条件——会话内改分辨率靠它）、`/kbd:unicode:on`、`/cert:ignore`、`/log-level:`（取自上游 `DebugSettings` 的默认级别）
   - **按工具箱的书签取值才发**：`/rfx` + `/network:auto`（:439，`RdpSettings.lossyCodecs()` 为真时）、`/gfx` + `/network:auto`（:445，工具箱固定 `setGfx(true)`，同时 `setH264(false)` 所以不会出现 `/gfx:AVC444`——openh264 没编）、`/audio-mode:0` + `/sound`（:526-529，`setRedirectSound(0)` 即声音播在手机上）
@@ -190,7 +200,7 @@
 - **会话页上的工具箱定制**（在 FreeRDP 会话界面之上加的一层）：左上角一排**半透明文字按钮**——收起、鼠标/触控（指针模式）、分辨率、键盘、信息、横屏/竖屏、全屏/退出全屏、断开；切换类的文字一律写「点下去会切到什么」，选择都会记住。**「收起」后只剩一枚 ☰ 把手贴右边缘垂直居中**（半透明，点一下回顶部成一排），把整块屏幕让给桌面；**长按 500 ms 可以拖着整条走**（收起后的把手也能拖），松手吸附到最近的一侧，收起/展开时按新宽度重新贴边。按钮样式与键盘、剪贴板、声音这些是 FreeRDP 的，但**手势与缩放这一层是工具箱自己的实现**（从 1.x 的会话页搬过来），见下两条。「信息」弹窗显示：主机端口、桌面尺寸与色深、**当前缩放与指针模式**、**协议（RDP 版本 / NLA / TLS / RemoteFX+RDPGFX / UDP 多传输状态）**、**帧率与流量（速率 + 会话内累计）**、引擎版本、客户端版本、已连接时长，以及启动前测的 TCP 握手耗时。向服务端请求的桌面尺寸在**分辨率**那一项里选（默认 1920×1080，也可以「适配屏幕分辨率」按手机像素要）
 - **缩放只有等比放大缩小，不拉伸**：基数永远是 `min(视口/画面)` **整幅放下**（横竖屏都一样，画面一定完整，可能留黑边——宁可留黑边也不裁掉任务栏）；倍率 1×~4× 由捏合改，基数在可视区变化时重算（全屏、转屏、软键盘都算），转屏时只动基数、用户的放大倍数保留，焦点下那个远端像素在捏合时不挪位；已经放大时双击回到 1×（没放大时不拦双击——桌面图标全靠双击打开）。画面**照 1.x 的方式跟手**：光标一进边缘带（15% 或 64dp）就把画面推到位，光标随即停在带子边上，画面继续跟着手指滑——边滑边走。**松手时不补动画**（1.x 的对准只在捏合/双击缩放、转屏、换分辨率后做；每次松手都滑一下就是顿挫）。滚动量统一是「现在位置 − 想要位置」（写成 `低 − 位置` 方向就反了，光标看着像在倒退），横竖轴各算各的。判据是「画面比视口大」且按轴判，内容尺寸按 `位图 × 缩放` 算而不是读 `getWidth()`（刚改完缩放时布局还没跑，读旧值就会算错），对不准的那一帧延到下一帧再做（可滚动范围随内容尺寸变）。手感只有一个旋钮 `FOLLOW_GAIN`（现为 1.0 = 1.x 原样）。画面超出视口时单指拖动让给 `ScrollView2D` 本地平移
 - **不开全屏也不给状态栏挖白**：会话根布局不再按 `statusBars | displayCutout` 的 top 留 padding——MIUI 把刘海也算进 top，实测横屏留 194 px、竖屏留 211 px，而系统真正让给状态栏只有 35 px，多出来的就是一块没人用的黑。现在桌面铺到屏幕顶、半透明状态栏压在上面，工具栏自己按 `statusBars().top` 往下让
-- **想要零黑边靠分辨率对上比例，不靠拽变形**：会话工具栏的**分辨率**（或连接簿 → 显示设置，两处是同一个对话框、同一份存储 `SessionResolution`）——☑「适配屏幕分辨率」按手机此刻的实际像素要桌面，或选预设（1920×1080 / 1600×900 / 1366×768 / 1280×800 / 1024×768）。
+- **想要零黑边靠分辨率对上比例，不靠拽变形**：会话工具栏的**分辨率**（或连接簿 → 显示设置，两处是同一个对话框、同一份存储 `SessionResolution`）——☑「适配屏幕分辨率」按**当前窗口**的实际像素要桌面，或选预设（1920×1080 / 1600×900 / 1366×768 / 1280×800 / 1024×768）。**平板第一次使用默认就是自适应**（`smallestScreenWidthDp >= 600`），手机仍默认 1920×1080；已经存过的选择不覆盖。`screenSize()` 优先取 Activity 的 `WindowMetrics.getBounds()`（API 30+），旧系统取可见区域，最后才退回 `getRealMetrics()`——所以分屏/自由窗口下不会把桌面要到整块物理屏
 - **改分辨率不用重连**：会话内选完点「应用」直接发 MS-RDPEDISP 的 Monitor Layout PDU（`/disp` 通道，`LibFreeRDP.sendMonitorLayout()`），桌面当场重排。1.x 认定「这台 Windows 完全不理这个 PDU」，那是 IronRDP 的发法；FreeRDP 实测有效。应用后会等 1.8 s 比对新位图尺寸再给结论，服务端真不认时提示「下次连接按它要桌面」而不是假装成功
 - **两种指针模式**（工具栏一键切，选择会记住）：**触控**=点哪儿打哪儿、单指滑动=远端滚轮（带甩动惯性）、按住松手=右键、按住后再动=拖拽；**鼠标**=整块画面当触摸板推远端光标（sqrt 加速曲线：慢 0.75×、1 px/ms 1.5×、4 px/ms 封顶 2.25×）、轻点=左键、轻点后按住=tap-and-a-half 立即拖拽、按住 600 ms 松手=右键；画面铺不满时**四周黑边也归触摸板**（黑边属于 `ScrollView2D`，事件由它的 `OnTouchListener` 转给 `SessionView.handleExternalTouch()`，触摸板只吃相对位移所以不用换算坐标；直控模式不接，黑边上的拖动仍是本地平移）。两指轻点=右键、三指轻点=中键、双指滑动=横/纵滚轮（30 dp 一格）、捏合=缩放
 - **光标画在远端画面里**：FreeRDP 把 `colorPointerFlag` 写死为 TRUE，服务端因此从不把光标烤进帧缓冲、也从不回传光标坐标。所以 `SessionView.onDraw()` 画完位图后自己把服务端下发的光标位图合成在画面内，坐标取自我们发出去的事件（`SessionInputManager.trackPointer()`——左/右/中键、拖动、悬停移动都记一次）；光标最小按原始尺寸画（画面缩到 0.56× 时跟着缩就只剩 18 px），服务端要隐藏光标时退回默认箭头而不是画没了，本地 `PointerIcon` 全程 `TYPE_NULL`，外接鼠标也不会出现两个光标
@@ -209,7 +219,7 @@
 - **域名也能连**：非字面量地址先在本进程解析（优先 IPv4），按域名连时如果域名下没有账号，会回退去查解析出来的 IP 那一条，不至于因为写法不同再输一次密码
 - **会话页的旋转与全屏**：FreeRDP 的会话 Activity 自己不锁方向、声明了 `configChanges`；全屏/沉浸由它的界面处理。会话内的「全屏」开关（`forceFullscreen`）要同时参与 `onWindowInsetsChanged()` 的留白计算——只在 `hideSystemBars()` 里藏系统栏不够，留白还按设置项留着，画面就永远撑不满
 - 已验证（Mi 10 Pro → 192.168.1.100，Windows 11，强制 NLA，凭据来自连接簿）：`已连通`、画面颜色正确；**点任务栏开始按钮能弹出 Windows 搜索菜单**；**硬件键盘输入能在 Windows 搜索框打出 `not`**；声音通道 RDPSND 建立、OpenSL ES 后端加载；退出会话无崩溃；竖屏缩放 0.5625、点一下后白色描边箭头出现在画面内的点击处（服务端发过 `OnPointerSetNull` 之后仍在）；全屏 + 横屏后 `sessionScrollView = 0,0-2340,1080`、`sessionView = 0,0-2340,1316`（横向零黑边）；空闲时不再刷 `onMeasure`（修复 `applyFitZoom ↔ requestLayout` 死循环前 4 s 内 1524 次）；**触控模式按住 900 ms 松手能弹出 Win11 桌面右键菜单**、轻点关掉它、竖屏单指上滑能滚信息流；**切鼠标模式后同一段滑动改为推光标**、在画面内点一下落在光标所在位置而不是手指位置；重开会话仍是上次选的指针模式；横屏整幅放下 `sessionView = 1512×851`（整张桌面含任务栏都在眼里）；勾上「适配屏幕分辨率」后信息面板显示 `桌面：1080×2340`、`sessionView = 966×2094`——竖屏 1:1 铺满、零黑边、不变形；**会话内**改 1920×1080 → 1280×800 桌面当场重排（`sessionView 1512×851 → 1361×851`），再切「适配 + 全屏」得到 `sessionView = 2340×1080` 与屏幕完全 1:1；**信息面板实测**输出 `协议：RDP 10.12 · NLA + TLS · RemoteFX + RDPGFX · UDP 可协商未启用`、`帧率：18 fps · 流量：216.3 KB/s ↓ · 会话内 22.8 MB`（视频播放时），桌面静止时帧率与速率归 0 而累计量仍在涨；**「收起」后界面上只剩 (2249, 540) 一枚把手**，点把手八个按钮回到顶部一排
-- **未验证/边界**：声音是否真的出声（没耳测）、剪贴板双向、长时间稳定性；**双指捏合、双指滚动、双指轻点右键、三指轻点中键没机器验证过**（`adb shell input` 注入不了多点触控），外接鼠标/触摸板下的手感同理；其他机型的刘海/挖孔留白组合；画质档位（省流/均衡/清晰）还没有设置入口，现在固定取 `RdpSettings` 的默认「均衡」，`PRESET_SHARP` 那档根本到不了；**「适配屏幕分辨率」开着时旋转手机，桌面尺寸不会跟着换**——原因不是"重建会话要回到应用侧"，而是**那个分支的判断条件恒为假**：`SessionActivity.java:481-489` 只认 `getActiveScreenSettings().isFitScreen()`，而启动器一律走 `screen.setResolution("custom", 宽, 高)`（`RdpSessionActivity.java:75`，把适配后的手机像素当自定义尺寸传进去），`isFitScreen()` 因此永远是 `false`。修法有两条且都不必重连——adaptive 时改传 `"fitscreen"`，或者在 `onConfigurationChanged` 里改判 `SessionResolution.isAdaptive(SessionResolution.load(...))`；反正 MS-RDPEDISP 当场生效已经实测过（见上一条）
+- **未验证/边界**：声音是否真的出声（没耳测）、剪贴板双向、长时间稳定性；**双指捏合、双指滚动、双指轻点右键、三指轻点中键没机器验证过**（`adb shell input` 注入不了多点触控），外接鼠标/触摸板下的手感同理；其他机型的刘海/挖孔留白组合；画质档位（省流/均衡/清晰）还没有设置入口，现在固定取 `RdpSettings` 的默认「均衡」，`PRESET_SHARP` 那档根本到不了。**「适配屏幕分辨率」旋转/分屏跟随的逻辑已在 v2.0.73 修好**（启动器 adaptive 时传 `"fitscreen"`、会话内切换也同步书签、按当前窗口 bounds 算尺寸），但**没有在 ARM 真机 + Windows 服务端上跑过这条完整路径**——本机 Pixel Tablet AVD 是 x86_64，根本没有 `libfreerdp-android.so`，只能验证 UI 与代码路径，不能验证 MS-RDPEDISP 实际重谈
 - **测试环境提醒**：这台手机上有一个会注入 `KEYCODE_BACK` 的辅助/自动化应用（logcat 里是 `Input event injection from pid 941`），会在大约几秒后把 FreeRDP 会话关掉，看起来像「远程桌面自己退出」——与界面无关，测试时先关掉这类自动化
 
 ## 依赖
@@ -481,6 +491,7 @@ app/src/main/java/com/decibelmeter/app/
   FileShare.java      # 用其他应用打开 / 分享一个私有文件（content URI + 单次读授权）
   FileUtil.java       # 大小显示、扩展名→MIME、落盘文件名安全化
   BaseActivity.java   # 语言切换菜单基类
+  TabletCompat.kt     # 最小屏宽 ≥600dp 判定平板；平板放开方向、手机保持竖屏（Compose 预览页可覆盖）
   LocaleHelper.java   # 应用内语言持久化与 Locale 包装
   NoiseMeter.java     # AudioRecord 采集线程 + RMS→dBFS + FFT 频段回调
   MeterView.java      # 30–120 dB 刻度条自定义 View
@@ -570,7 +581,7 @@ node tools/gen_icons.js
 - **USB 功能只能真机验证**：Android 模拟器没有 USB 宿主，`UsbManager`/OTG 相关路径（固件下载）必须在带 OTG 的实机上测；CH340/CH341、CP210x、FTDI 由 `usb-serial-for-android` 驱动。
 - **体积不小**：`libfreerdp-android.so` 是 arm64 约 9.3 MB、armv7 约 7.0 MB（APK 内的压缩前大小；FreeRDP + OpenSSL 静态链入、已剥符号），debug APK 约 40 MB。
 - **内置通道已连上真机验证，但功能面还窄**：**2.0 实测有效的是**——轻点、点一下落在光标处、按住 900 ms 松弹出桌面右键菜单、单指滑动滚信息流（触控模式）与推光标（鼠标模式）、**硬件键盘**在 Windows 搜索框打出文字、重开会话保留上次选的指针模式、会话内改分辨率当场重排、画面四周黑边也能推光标（Windows 11 桌面上开过开始菜单）。**别把 1.x 的验证当成这一版的**：软键盘与「锁存修饰键」功能键面板、Ctrl+Alt+Del 那几条是 1.x 自绘会话页的实测结论，2.0 这边扩展键面板现在没有入口（见「远程桌面 · 内置通道」一节），工具栏上也没有 Ctrl+Alt+Del 那一档。双指捏合/滚动/右键与三指中键到现在仍未机器验证（注不进多点触控）。位图缓存/RemoteFX/GFX 与剪贴板同步现在由 FreeRDP 客户端自己开（`/rfx`（条件）`/gfx /clipboard`），不再是没做的项。已知边界：远端光标由 `SessionView` 合成在画面内，形状随服务端下发变化，但**位置只能按我们发出的事件推算**——FreeRDP 把 `colorPointerFlag` 写死为 TRUE，服务端不回传光标坐标，所以远端自己移动光标（比如动画、程序设置光标位置）时画面里的光标不会跟着走；另外原生侧只有一份全局会话状态（同时只能连一台）。
-- **强制竖屏**：所有 Activity 都固定 portrait，避免旋转导致采集线程与 USB 会话重建，因此 lint 的 `LockedOrientationActivity` 提示属刻意取舍；Android 16 起该属性在多数场景会被忽略，届时需要改成真正适配横竖屏。两个例外都不锁方向并声明 `configChanges`：内置远程桌面会话页（原生会话线程活在进程里，Activity 重建会让画面与会话对不上）和共享文件预览页（视频横屏才有意义，重建会拆掉播放器与本机回环服务，看起来就是「转一下方向就重播」）。
+- **方向策略（v2.0.73 起）**：不再在 manifest 里给所有页面写死 portrait。`TabletCompat` 在运行时按最小屏宽分流——**手机仍锁竖屏**（避免旋转导致采集线程与 USB 会话重建），**平板自由旋转**；页面统一声明 `configChanges`，所以转屏/分屏不会重建 Activity。两个例外始终不锁方向：内置远程桌面会话页（原生会话线程活在进程里，Activity 重建会让画面与会话对不上）和共享文件预览页（视频横屏才有意义，重建会拆掉播放器与本机回环服务，看起来就是「转一下方向就重播」）。`resizeableActivity="true"` 显式声明支持多窗口
 - **targetSdk 仍是 34**：上调前需回归前台服务、通知权限与 USB 授权行为。
 
 ### 已知问题（本轮逐条对着代码核实过，**只记录、未修改**）
@@ -581,7 +592,7 @@ node tools/gen_icons.js
 2. **`pin()` 登录失败也给连接计数 +1**（高）——`TransferHub.kt:304-310` 用 `runCatching { SmbHub.acquire(...) }`，抛异常时照样 `hostPins[host] = refs + 1`；任务结束时 `unpin()`（:312-320）却会 `SmbHub.release(host)`，于是**把浏览页自己那份引用扣穿、连带关掉正在用的连接**。另外 `pin` 是在 `submit()` 里从主线程调的，而 `SmbHub.kt:75` 的注释明写 acquire 必须在工作线程（真机上在这里吃过 `NetworkOnMainThreadException`）。改法：只有 acquire 成功才记账，失败要把错误报给用户而不是 `runCatching` 咽掉
 3. **Android 9 及以下「复制路径」是错的、「删除」必失败**（中）——`SmbDownloadsActivity.kt:321` 与 `:343-345` 按公共 `Download/工具箱` 拼 `File` 路径，可那两个分支的下载实际落在 `getExternalFilesDir(DIRECTORY_DOWNLOADS)`（`:145` 列清单时用的就是私有目录，`DownloadStore.kt:165` 也证实）。列表能列出来、却删不掉，就是这两处路径不一致
 4. **外部播放器播的是上一个文件**（中）——`SmbStreamService.kt:117-122`：只要代理还活着就直接回 `running.url`，**完全没比 `EXTRA_HOST`/`EXTRA_PATH`**。空闲窗是 5 分钟（`:45`），所以「先用 VLC 播 a.mkv，退回来点 b.mkv」会拿到 a 的地址继续播。改法：服务里留住 host/path，两者不同就重启代理
-5. **「适配屏幕分辨率」在转屏时不生效**（中）——判断条件恒为假，见「远程桌面 · 内置通道」那条「未验证/边界」里的定位（`SessionActivity.java:481-489` + `RdpSessionActivity.java:75`）
+5. **x86/x86_64 设备用不了内置远程桌面**（已知限制，已优雅降级）——APK 只带 ARM64/ARMv7 的 `libfreerdp-android.so`。v2.0.73 起缺库不再让整个工具箱启动崩溃，RDP 入口会明确提示；但要在 x86 平板上真正用 RDP，仍得给 FreeRDP/OpenSSL/JNI 补一套 x86_64 交叉编译产物（`third_party/build-android.sh` 目前只出两个 ARM ABI），这不是一行配置能解决的
 6. **上传只有 64 KB 串行**（中）——`SmbClient.java:325` 的注释写着「写侧不能传大缓冲…得自己切块分发，留待以后」；读侧已经把套接字缓冲抬到 1 MB（下载 49.6 MB/s），写侧还是 17.4 MB/s。要再快只能并行写：顺序流切块、多句柄按偏移写
 7. **`IspActivity` 在 main thread 读写整片文件**（中）——`onActivityResult`（:598）→ `loadFirmware`（:614）→ `readAll`（:864）直接把最大 8 MB 的固件（`:640` 才做上限判断）读进内存，之后 HEX 解析与建镜像也都在主线程；`saveFlashImage` 把读回的整片 Flash 走 `toIntelHex()`（体积膨胀约 4 倍）写出去同样是主线程。这个类本来就有一个 `runTask()` 调度器（`:905-948`）和一个 `executor`（`:114`），搬过去即可
 8. **一次点几十张照片时主线程跑 ContentProvider 事务**（中）——`SmbBrowseActivity.kt:1387` 在点击回调里 `DownloadSink.create()`，里面是 insert + 两次 query（`DownloadStore.kt:106-162`）；批量下载是循环调用（`:1232-1234`），30 张照片就是约 90 次事务。`doneText()`（`:1412` → `DownloadStore.kt:247`）每完成一条还要在主线程问一次大小
@@ -632,7 +643,7 @@ git push origin main
 git push gitee main
 ```
 
-界面资源：`res/layout/activity_main.xml`（分贝仪）、`res/layout/activity_dns.xml` + `item_dns_domain.xml`（域名解析页与列表条目）、`res/layout/activity_isp.xml`（固件下载页）、`res/values/styles.xml`（固件下载页的分区标题/分隔线/标签/可展开标题行样式）、`res/drawable/bg_isp_box.xml`（日志区圆角边框，颜色取主题属性）、`res/drawable/ic_dns_refresh.xml`（标题栏刷新按钮矢量图标，用 `colorControlNormal` 着色适配深浅色）、`res/xml/device_filter.xml`（声明可自动接管的 USB 串口芯片 VID/PID）。
+界面资源：`res/layout/activity_main.xml`（分贝仪，v2.0.73 起根布局是 `NestedScrollView`，图表高度改走 dimen）、`res/layout/activity_dns.xml` + `item_dns_domain.xml`（域名解析页与列表条目）、`res/layout/activity_isp.xml`（固件下载页，根布局本来就是 ScrollView）、`res/values/dimens.xml` + `res/values-sw600dp/dimens.xml` + `res/values-land/dimens.xml`（手机 / 平板 / 横屏三档尺寸）、`res/values/styles.xml`（固件下载页的分区标题/分隔线/标签/可展开标题行样式）、`res/drawable/bg_isp_box.xml`（日志区圆角边框，颜色取主题属性）、`res/drawable/ic_dns_refresh.xml`（标题栏刷新按钮矢量图标，用 `colorControlNormal` 着色适配深浅色）、`res/xml/device_filter.xml`（声明可自动接管的 USB 串口芯片 VID/PID）。
 
 ## 测量精度说明
 

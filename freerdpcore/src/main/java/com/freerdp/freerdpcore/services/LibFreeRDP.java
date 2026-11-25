@@ -78,6 +78,8 @@ public class LibFreeRDP
 		return tryLoad(new String[] { library });
 	}
 
+	private static boolean nativeAvailable;
+
 	static
 	{
 		try
@@ -106,15 +108,28 @@ public class LibFreeRDP
 				throw new RuntimeException("APK broken: native library version " + version +
 				                           " does not meet requirements!");
 			mHasCameraRedirection = freerdp_has_camera_redirection();
+			nativeAvailable = true;
 			Log.i(TAG, "Successfully loaded native library. H264 is " +
 			               (mHasH264 ? "supported" : "not available") + ", camera redirection is " +
 			               (mHasCameraRedirection ? "supported" : "not available"));
 		}
 		catch (UnsatisfiedLinkError e)
 		{
-			Log.e(TAG, "Failed to load library: " + e);
-			throw e;
+			// x86/x86_64 平板与模拟器没有本工程的 ARM 原生库；不能让整个工具箱在
+			// GlobalApp.onCreate 里启动即崩，RDP 入口会检查 isAvailable() 并给出提示。
+			nativeAvailable = false;
+			Log.e(TAG, "Native library unavailable on this ABI: " + e);
 		}
+		catch (RuntimeException e)
+		{
+			nativeAvailable = false;
+			Log.e(TAG, "Native library rejected: " + e);
+		}
+	}
+
+	public static boolean isAvailable()
+	{
+		return nativeAvailable;
 	}
 
 	public static boolean hasH264Support()
@@ -909,7 +924,7 @@ public class LibFreeRDP
 
 	public static String getVersion()
 	{
-		return freerdp_get_version();
+		return nativeAvailable ? freerdp_get_version() : "unavailable";
 	}
 
 	public interface EventListener

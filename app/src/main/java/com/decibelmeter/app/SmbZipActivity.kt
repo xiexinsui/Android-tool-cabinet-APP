@@ -7,8 +7,11 @@ import android.os.Bundle
 import android.view.Menu
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -217,6 +220,7 @@ class SmbZipActivity : ComposeBaseActivity() {
         ui.value = ui.value.copy(selected = selected)
     }
 
+    @OptIn(ExperimentalLayoutApi::class)
     @Composable
     override fun Content() {
         val state by ui.collectAsState()
@@ -253,8 +257,9 @@ class SmbZipActivity : ComposeBaseActivity() {
             }
             if (state.selected.isNotEmpty()) {
                 HorizontalDivider()
-                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
+                FlowRow(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.Center) {
                     Text(stringResource(R.string.smb_zip_selected, state.selected.size),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodyMedium)

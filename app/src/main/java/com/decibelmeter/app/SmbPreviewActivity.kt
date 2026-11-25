@@ -53,6 +53,8 @@ data class PreviewUi(
  */
 class SmbPreviewActivity : ComposeBaseActivity() {
 
+    override val allowLandscapeOnPhone: Boolean = true
+
     companion object {
         const val EXTRA_HOST = "preview_host"
         const val EXTRA_HOST_LABEL = "preview_host_label"

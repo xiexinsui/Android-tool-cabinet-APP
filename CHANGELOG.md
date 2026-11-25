@@ -2,6 +2,42 @@
 
 每次推送在顶部追加一条，分类用「新增 / 修改 / 修复 / 移除」。提交信息主题与本文件对应条目保持一致。
 
+## v2.0.73 — 2026-11-25
+
+让 APK 真正按平板使用：平板可以旋转与分屏，手机仍保持原来的竖屏约束；RDP 在平板上第一次默认自适应分辨率，旋转/分屏时按当前窗口重新谈尺寸。顺带修掉一个此前没暴露的兼容性问题——x86/x86_64 平板因为缺 ARM 原生库，**整个工具箱会在启动时崩溃**，现在只禁用 RDP，其余工具照常。
+
+### 新增
+
+- **平板方向策略**：新增 `TabletCompat.kt`，最小屏宽 ≥600dp 判定平板；`BaseActivity` 与 `ComposeBaseActivity` 在平板设 `SCREEN_ORIENTATION_UNSPECIFIED`，手机仍设 `SCREEN_ORIENTATION_PORTRAIT`。共享预览页覆盖 `allowLandscapeOnPhone=true`，手机上也能横屏看视频
+- **旋转/分屏不重建**：manifest 去掉 9 个 `screenOrientation="portrait"`，统一补 `orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden` 的 `configChanges`，application 显式 `resizeableActivity="true"`。扫描线程、USB 会话、下载队列、Compose 选中状态都不会因转屏重来
+- **主界面响应式布局**：`activity_main.xml` 根改 `NestedScrollView`，曲线从 `weight=1` 改成固定 dimen；新增 `values/dimens.xml`、`values-sw600dp/dimens.xml`、`values-land/dimens.xml` 三档（手机 16dp/64sp/72dp/96dp/160dp，平板 28dp/80sp/104dp/144dp/240dp，横屏 20dp/56sp/64dp/88dp/160dp）
+- **Compose 窄屏动作**：已下载的「继续 / 放弃」与压缩包底栏改 `FlowRow`，放不下自动换行；浏览页任务面板在窗口高度 <500dp 时从 4 行缩到 2 行
+- **RDP 平板首次默认自适应**：`SessionResolution.load()` 在最小屏宽 ≥600dp 且用户没存过选择时返回 0×0；手机仍默认 1920×1080，已有选择不覆盖
+
+### 修复
+
+- **「适配屏幕分辨率」旋转/分屏永远不生效**：启动器以前一律 `setResolution("custom", …)`，导致 `SessionActivity.onConfigurationChanged()` 里的 `isFitScreen()` 恒假。现在 adaptive 时传 `"fitscreen"`；会话内切换分辨率也同步书签模式，下次旋转才进得去那条分支
+- **分屏下分辨率取错屏幕**：`SessionResolution.screenSize()` 从 `getRealMetrics()` 改为优先取当前 Activity 的 `WindowMetrics.getBounds()`（API 30+），旧系统取可见区域，最后才退回物理屏。窄分屏不会再要到整块平板那么大
+- **RDP 工具栏不能横向滚动**：`FloatingToolbar.DragTouch` 以前在 DOWN 就 `requestDisallowInterceptTouchEvent(true)`，父级 `HorizontalScrollView` 永远收不到手势。现在只在长按成功后禁拦截，平时划动正常滚动，窄屏也够得着后面的按钮
+- **x86/x86_64 平板启动即崩**：`LibFreeRDP` 静态块缺 `libfreerdp-android.so` 时直接重抛 `UnsatisfiedLinkError`，而 `GlobalApp.onCreate` 无条件触发它。现在缺库只记日志、`isAvailable()` 返回 false，`getVersion()` 返回 `unavailable`；RDP 入口给出「仅支持 ARM64 / ARMv7」的提示并退出，其它工具正常启动
+- **API 37 字段改名**：compileSdk 37 的 `Configuration` 里旧字段 `smallestScreenSizeDp` 已不存在，改为 API 36+ 读 `smallestScreenWidthDp`，API 24–35 用 `min(screenWidthDp, screenHeightDp)`。这条是实际编译报错后查 `android.jar` 才确认的，不是照文档猜的
+- **英文资源缺口**：补 `rdp_menu_display` 的英文文案（默认 locale 有、values-en 漏了）
+
+### 修改
+
+- README 新增「平板与分屏」小节；「强制竖屏」旧说明改成按设备分流；RDP「适配分辨率」从"手选才有"改成"平板首次默认 + 当前窗口 bounds"；已知问题第 5 条从"旋转不生效"改为"x86 设备无原生库（已降级）"
+- `values/dimens.xml` 合并时保留原有的 `meter_tick_text`（11sp，平板档 12sp）——三个自定义 View 都在读它，开发中曾因覆盖文件漏掉而编译失败，本次已补回并验证
+
+### 验证
+
+- **Pixel Tablet AVD**（`ToolKit_Tablet_API_35`，API 35，2560×1600，320dpi，自然方向横屏）：主页横屏正常；分贝仪 `meter=104dp`、`spectrum=144dp`，滚到底后 `btn_toggle` 与 `btn_calibrate` 都在可视区；DNS 输入与空列表、ISP 的 USB/参数/固件/操作区、局域网扫描结果、已下载 Compose 页均正常
+- **旋转不重建**：分贝仪、DNS、局域网、已下载页各转到竖屏再转回，`ActivityRecord` 哈希不变、`launchCount=1`；局域网扫描跨旋转继续跑
+- **窄分屏代理测试**：`wm size 1280x800` 后配置变为 `sw400dp w640dp h368dp land`，同一 Activity 不重建；分贝仪滚两次后 `btn_toggle=[56,578][1029,674]`、`btn_calibrate=[1029,572][1224,680]` 都在 1280×736 的可视区内，随后 `wm size reset` 恢复
+- **x86 降级**：同一 debug APK 在 x86_64 平板 AVD 上成功进主页；logcat 为 `LibFreeRDP: Native library unavailable on this ABI`，不再出现 `FATAL EXCEPTION`
+- **Medium Phone AVD**（`Medium_Phone_API_37.0`，API 37，1080×2400，420dpi）：即使 `user_rotation=1`，ToolBox 仍是 `requestedOrientation=SCREEN_ORIENTATION_PORTRAIT`、配置 `port`；分贝仪 `meter=72dp`、`spectrum=96dp`、`curve=160dp`，底部按钮无需滚动就在可视区，手机端尺寸与方向行为未变
+- **release 产物**：`./gradlew assembleRelease` → BUILD SUCCESSFUL，`工具箱-2.0.73.apk` 33,618,632 字节，包内 `versionCode=116` / `versionName=2.0.73`；`apksigner verify --verbose` → `Verifies`、v2 方案 true、v1/v3 false，证书仍是 `CN=ToolKit Release`、SHA-256 `d978761677a1b9c28ee02463ded88d3d17c02fe64e0a9ed2314ed68c4c7f605f`（与 v2.0.72 同一把钥匙，能正常覆盖升级）
+- **未验证**：RDP 的 MS-RDPEDISP 实际重谈、工具栏横滚与长按拖动、多点触控——x86 AVD 没有 ARM 原生库，无法进会话；需要 ARM 平板/手机 + Windows 服务端补测。本轮没有碰两台已连接的真机
+
 ## v2.0.72 — 2026-11-03
 
 第一次产出**可安装的 release 包**。之前的 release 配置只有 `minifyEnabled false`，没有任何签名，`assembleRelease` 出来的是未签名 APK——能生成、装不上去，而这一点此前没人踩过，因为一直在装 debug 包。

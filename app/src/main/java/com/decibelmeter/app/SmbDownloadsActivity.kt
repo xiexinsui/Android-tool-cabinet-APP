@@ -15,7 +15,10 @@ import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -199,10 +202,12 @@ class SmbDownloadsActivity : ComposeBaseActivity() {
         }
     }
 
+    @OptIn(ExperimentalLayoutApi::class)
     @Composable
     private fun UnfinishedRow(record: UnfinishedDownload) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        FlowRow(Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.Center) {
             Column(Modifier.weight(1f)) {
                 Text(record.label, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodyLarge)
